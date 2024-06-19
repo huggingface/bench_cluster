@@ -8,6 +8,9 @@ from tqdm import tqdm
 def create_configs(out_dir: str, model: str, gpus: int):
     print(f"Creating configs for {model} given {gpus} GPUs")
     
+    #TODO(fmom): add support for seqlen and micro batch size
+    #TODO(fmom): add support for models
+    
     # Generate all possible combinations of three numbers from 1 to gpus
     combinations_3D_parallelism = set()    
     for combination in itertools.product(range(1, gpus+1), repeat=3):
