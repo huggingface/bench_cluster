@@ -16,8 +16,8 @@ if __name__ == '__main__':
     # Submit jobs
     submit_jobs_parser = subparsers.add_parser("submit_jobs")
     submit_jobs_parser.add_argument("--inp_dir", type=str, required=True)
-    submit_jobs_parser.add_argument("--qos", type=str, required=True, choices=["low", "medium", "high", "prod"]) 
-    
+    submit_jobs_parser.add_argument("--qos", type=str, required=True, choices=["low", "normal", "high", "prod"]) 
+    submit_jobs_parser.add_argument("--only_fails", action="store_true", default=False)
     # Check status
     check_status_parser = subparsers.add_parser("check_status")
     
@@ -35,7 +35,7 @@ if __name__ == '__main__':
     if args.action == "create_configs":
         create_configs(args.out_dir, args.model, args.gpus)
     elif args.action == "submit_jobs":
-        submit_jobs(args.inp_dir, args.qos)
+        submit_jobs(args.inp_dir, args.qos, only_fails=args.only_fails)
     elif args.action == "check_status":
         pass
     elif args.action == "parse_logs":

@@ -1,26 +1,47 @@
 #!/bin/bash
 
 #SBATCH --job-name=bench_cluster-{{ run_id }}
+#SBATCH --time=00:10:00
+#SBATCH --partition=hopper-prod
 #SBATCH --nodes={{ nodes }}
-#SBATCH --time=00:05:00
+#SBATCH --gres=gpu:{{ n_proc_per_node }}
 #SBATCH --qos={{ qos }}
 #SBATCH --ntasks-per-node=1
-#SBATCH --partition=hopper-prod
-#SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=11
 #SBATCH --output={{ root_path }}/log-{{ run_id }}.out
 #SBATCH --error={{ root_path }}/log-{{ run_id }}.out
 
+# Function to update status based on squeue output
+update_status() {
+    job_id=$1
+    status_file=$2
+    # For unknown reasons, it doenst update status for pending. It only works for running 
+    while true; do
+        job_status=$(squeue --job $job_id --noheader --format=%T)
+        echo "Job status: $job_status"
+        if [ -z "$job_status" ]; then
+            # Job has finished or is not found
+            break
+        elif [ "$job_status" = "RUNNING" ]; then
+            printf "running" > $status_file
+            break
+        fi
+        sleep 10
+    done
+}
+
 # Misc initializations.
+echo "========================"
 echo "START TIME: $(date)"
 source /fsx/ferdinandmom/miniforge3/etc/profile.d/conda.sh
 conda activate /fsx/ferdinandmom/miniforge3/envs/env-bench-cluster
 echo python3 version = $(python3 --version)
+echo "========================"
 
 # Slurm stuff
 export HOSTNAMES=$(scontrol show hostnames "$SLURM_JOB_NODELIST")
 export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
-export MASTER_PORT=6000
+export MASTER_PORT=$((1024 + RANDOM % 64511))
 
 export TMPDIR=/scratch
 export HF_DATASETS_CACHE="/admin/home/ferdinand_mom/.cache"
@@ -39,5 +60,14 @@ LAUNCHER="torchrun \
    --tee 3 \
    --node_rank ${SLURM_PROCID}"
 
+# Get the current job ID
+job_id=${SLURM_JOB_ID}
+
+# Update status to "pending" or "running" in the background
+update_status $job_id {{ root_path }}/status.txt &
+
+# Run the main command
 srun -u $LAUNCHER $CMD \
-  && echo completed > {{ root_path }}/status.txt || echo failed > {{ root_path }}/status.txt
+  && printf "completed" > {{ root_path }}/status.txt || printf "failed" > {{ root_path }}/status.txt
+
+  

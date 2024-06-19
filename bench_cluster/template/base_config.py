@@ -10,15 +10,27 @@ base_config = {
             'std': 0.025
         },
         'make_vocab_size_divisible_by': 1,
-        'model_config': {
+        'model_config' : {
+            'bos_token_id': 1,
+            'eos_token_id': 2,
             'hidden_act': 'silu',
+            'hidden_size': 2048,
             'initializer_range': 0.02,
+            'intermediate_size': 8192,
             'is_llama_config': True,
+            'max_position_embeddings': 2048,
+            'num_attention_heads': 32,
+            'num_hidden_layers': 24,
+            'num_key_value_heads': 32,
+            'pad_token_id': None,
+            'pretraining_tp': 1,
             'rms_norm_eps': 1.0e-05,
             'rope_scaling': None,
-            'tie_word_embeddings': False,
-            'use_cache': True
-        }
+            'rope_theta': 10000.0,
+            'tie_word_embeddings': True,
+            'use_cache': True,
+            'vocab_size': 50272
+        },
     },
     'optimizer': {
         'accumulate_grad_in_fp32': True,
@@ -48,6 +60,12 @@ base_config = {
         'tp_linear_async_communication': False,
         'tp_mode': 'REDUCE_SCATTER'
     },
+    'tokenizer':
+    {
+        'tokenizer_max_length': None,
+        'tokenizer_name_or_path': 'openai-community/gpt2',
+        'tokenizer_revision': None
+    },
     'data_stages': [
         {
             'name': 'Training Stage',
@@ -69,7 +87,12 @@ base_config = {
     'lighteval': None,
     'tokens': {
         'train_steps': 20,
-        'val_check_interval': -1
+        'val_check_interval': -1,
+        'batch_accumulation_per_replica': 1,
+        'limit_test_batches': 0,
+        'limit_val_batches': 0,
+        'micro_batch_size': 2,
+        'sequence_length': 256,
     },
     'logging': {
         'iteration_step_info_interval': 1,
