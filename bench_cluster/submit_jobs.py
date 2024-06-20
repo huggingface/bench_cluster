@@ -141,7 +141,6 @@ def submit_jobs(inp_dir, qos, hf_token, only_fails=False):
     #TODO: For how many steps do we have to run ?
     #TODO: add option to do recomputer layer in Nanotron
     #TODO: add info in logs about profiler ?
-    #TODO(fmom): add support for micro batch size
 
     env_vars = os.environ.copy()
     env_vars["HUGGINGFACE_TOKEN"] = hf_token
