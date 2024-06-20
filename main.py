@@ -2,6 +2,7 @@ from argparse import ArgumentParser
 
 from bench_cluster.create_configs import create_configs
 from bench_cluster.submit_jobs import submit_jobs, check_status
+from bench_cluster.report import report
 
 if __name__ == '__main__':
     parser = ArgumentParser()
@@ -18,15 +19,14 @@ if __name__ == '__main__':
     submit_jobs_parser.add_argument("--inp_dir", type=str, required=True)
     submit_jobs_parser.add_argument("--qos", type=str, required=True, choices=["low", "normal", "high", "prod"]) 
     submit_jobs_parser.add_argument("--only_fails", action="store_true", default=False)
+    
     # Check status
     check_status_parser = subparsers.add_parser("check_status")
     check_status_parser.add_argument("--inp_dir", type=str, required=True)
     
-    # Parse logs
-    parse_logs_parser = subparsers.add_parser("parse_logs")
-    
     # Report
     report_parser = subparsers.add_parser("report")
+    report_parser.add_argument("--inp_dir", type=str, required=True)    
     
     # Plots
     plots_parser = subparsers.add_parser("plots")
@@ -40,7 +40,7 @@ if __name__ == '__main__':
     elif args.action == "check_status":
         check_status(args.inp_dir)
     elif args.action == "report":
-        pass
+        report(args.inp_dir)
     elif args.action == "plots":
         pass
     else:
