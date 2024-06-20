@@ -22,42 +22,54 @@ def find_combinations_power_of_2(x):
     return combinations
 
 def update_config_based_on_model(model: str, config: dict):
+    
+    # Setting num_attention_heads = num_key_value_heads for all models <=> using MHA for all layers
+    
     if model == "llama-1B":
+        # HuggingFaceFW/ablation-model-fineweb-v1
         config["model"]["model_config"]["hidden_size"] = 2048
         config["model"]["model_config"]["intermediate_size"] = 8192
         config["model"]["model_config"]["num_attention_heads"] = 32
         config["model"]["model_config"]["num_hidden_layers"] = 24
         config["model"]["model_config"]["num_key_value_heads"] = 32
+        config["model"]["model_config"]["max_position_embeddings"] = 2048
     elif model == "llama-7B":
+        # meta-llama/Llama-2-7b-hf
         config["model"]["model_config"]["hidden_size"] = 4096
-        config["model"]["model_config"]["intermediate_size"] = 11008 #TODO: Is it correct ?
+        config["model"]["model_config"]["intermediate_size"] = 11008
         config["model"]["model_config"]["num_attention_heads"] = 32
         config["model"]["model_config"]["num_hidden_layers"] = 32
         config["model"]["model_config"]["num_key_value_heads"] = 32
+        config["model"]["model_config"]["max_position_embeddings"] = 4096
     elif model == "llama-70B":
+        # meta-llama/Llama-2-70b-hf
         config["model"]["model_config"]["hidden_size"] = 8192
-        config["model"]["model_config"]["intermediate_size"] = None #TODO: Is it correct ?
-        config["model"]["model_config"]["num_attention_heads"] = 64
+        config["model"]["model_config"]["intermediate_size"] = 28672
+        config["model"]["model_config"]["num_key_value_heads"] = 64
         config["model"]["model_config"]["num_hidden_layers"] = 80
-        config["model"]["model_config"]["num_key_value_heads"] = None #TODO: Is it correct ?
+        config["model"]["model_config"]["num_key_value_heads"] = 64
+        config["model"]["model_config"]["max_position_embeddings"] = 4096
     elif model == "llama-340B":
+        # nvidia/Nemotron-4-340B-Base
         config["model"]["model_config"]["hidden_size"] = 18432
-        config["model"]["model_config"]["intermediate_size"] = None #TODO: Is it correct ?
+        config["model"]["model_config"]["intermediate_size"] = 73728
         config["model"]["model_config"]["num_attention_heads"] = 96
         config["model"]["model_config"]["num_hidden_layers"] = 96
-        config["model"]["model_config"]["num_key_value_heads"] = None #TODO: Is it correct ?
+        config["model"]["model_config"]["num_key_value_heads"] = 96
+        config["model"]["model_config"]["max_position_embeddings"] = 4096
     elif model == "llama-400B":
         config["model"]["model_config"]["hidden_size"] = 16384
         config["model"]["model_config"]["intermediate_size"] = None #TODO: Is it correct ?
+        raise NotImplementedError("Missing model configuration for llama-400B")
         config["model"]["model_config"]["num_attention_heads"] = 128
         config["model"]["model_config"]["num_hidden_layers"] = 126
-        config["model"]["model_config"]["num_key_value_heads"] = None #TODO: Is it correct ?
+        config["model"]["model_config"]["num_key_value_heads"] = 128
     else:
         raise ValueError(f"Model {model} is not supported")  
 
+    
     tokenizer = AutoTokenizer.from_pretrained(config["tokenizer"]["tokenizer_name_or_path"])
     config["model"]["model_config"]["vocab_size"] = tokenizer.vocab_size
-    config["model"]["model_config"]["max_position_embeddings"] = config["tokens"]["sequence_length"]
 
 def create_configs(out_dir: str, model: str, gpus: int):
     print(f"Creating configs for {model} given {gpus} GPUs")
