@@ -59,8 +59,7 @@ def update_config_based_on_model(model: str, config: dict):
         config["model"]["model_config"]["max_position_embeddings"] = 4096
     elif model == "llama-400B":
         config["model"]["model_config"]["hidden_size"] = 16384
-        config["model"]["model_config"]["intermediate_size"] = None #TODO: Is it correct ?
-        raise NotImplementedError("Missing model configuration for llama-400B")
+        config["model"]["model_config"]["intermediate_size"] = 1.2 *  config["model"]["model_config"]["hidden_size"]
         config["model"]["model_config"]["num_attention_heads"] = 128
         config["model"]["model_config"]["num_hidden_layers"] = 126
         config["model"]["model_config"]["num_key_value_heads"] = 128
