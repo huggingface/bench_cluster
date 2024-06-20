@@ -12,7 +12,7 @@ if __name__ == '__main__':
     create_configs_parser = subparsers.add_parser("create_configs")
     create_configs_parser.add_argument("--out_dir", type=str, required=True)
     create_configs_parser.add_argument("--model", type=str, required=True)
-    create_configs_parser.add_argument("--gpus", type=int, required=True)
+    create_configs_parser.add_argument("--gpus", type=int, required=True, choices=[8, 16, 32, 64, 128, 256, 512])
 
     # Submit jobs
     submit_jobs_parser = subparsers.add_parser("submit_jobs")

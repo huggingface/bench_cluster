@@ -54,7 +54,7 @@ def create_configs(out_dir: str, model: str, gpus: int):
                 combinations_3D_parallelism.add(perm)
 
     # Create directories and write config files
-    path = os.path.join(out_dir, model)
+    path = os.path.join(out_dir, model + f"/{gpus}_GPUS")
     if not os.path.exists(path):
         os.makedirs(path)
     
