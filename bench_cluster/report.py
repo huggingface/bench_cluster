@@ -66,6 +66,7 @@ def report(inp_dir):
     folders = [os.path.abspath(folder) for folder in glob.glob(os.path.join(inp_dir, "**"), recursive=True) if os.path.isdir(folder)]
     
     completed_logs_path = []
+    
     for folder in folders:
         status_file = os.path.join(folder, "status.txt")
         if os.path.exists(status_file):
@@ -78,3 +79,5 @@ def report(inp_dir):
 
     metrics_dict = extract_metrics_from_files(completed_logs_path)
     save_metrics_to_csv(metrics_dict)
+    
+    print(f"Saved {len(metrics_dict)} csv files over {len(completed_logs_path)} completed logs")
