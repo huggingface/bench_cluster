@@ -3,6 +3,8 @@ import os
 from jinja2 import Template
 import subprocess
 import yaml
+import glob
+
 class Status(Enum):
     # INIT -> PENDING -> [RUNNING | FAIL] -> COMPLETED
     INIT = "init"           # Job is created
@@ -51,9 +53,8 @@ class Job:
 class Scheduler:
     
     def __init__(self, inp_dir: str, qos: str) -> None:
-        self.inp_dir = inp_dir
-        self.jobs_directory_paths = [os.path.abspath(root) for root, dirs, _ in os.walk(inp_dir) if not dirs]        
-        self.job_lists = [Job(job_path, qos) for job_path in self.jobs_directory_paths]
+        jobs_directory_paths = [os.path.abspath(root) for root, dirs, _ in os.walk(inp_dir) if not dirs]        
+        self.job_lists = [Job(job_path, qos) for job_path in jobs_directory_paths]
 
     def keep_only_jobs(self, status: Status):
         return [job for job in self.job_lists if job.status == status]
@@ -102,12 +103,42 @@ class Scheduler:
 
         print(f"Slurm script created at {output_file_path}")
             
+    def check_status(self):
+        # find all status files using self.jobs_directory_paths
+        status_files = [os.path.join(job.root_path, "status.txt") for job in self.job_lists]
+                
+        status_counts = {
+            "init": 0,
+            "pending": 0,
+            "running": 0,
+            "fail": 0,
+            "completed": 0
+        }
+        
+        for status_file in status_files:
+            with open(status_file, 'r') as f:
+                status = f.read().strip()
+                if status in status_counts:
+                    status_counts[status] += 1
+                else:
+                    raise ValueError(f"Invalid status: {status}")
+
+        total = sum(status_counts.values())
+        
+        # Print the status counts in a formatted table
+        print(f"{'Status':<10} | {'Count':<6}")
+        print(f"{'-'*10}-|-{'-'*6}")
+        for status, count in status_counts.items():
+            print(f"{status.capitalize():<10} | {count:<6}")
+        
+        print(f"{'-'*10}-|-{'-'*6}")
+        print(f"{'Total':<10} | {total:<6}")
 
 def submit_jobs(inp_dir, qos, only_fails=False):
     scheduler = Scheduler(inp_dir, qos)
 
-    #TODO: log to wandb the data
-
+    #TODO: log to wandb the data or Hugingface Hub ?
+    
     total_jobs = len(scheduler.job_lists)
 
     if only_fails:
@@ -124,3 +155,7 @@ def submit_jobs(inp_dir, qos, only_fails=False):
         scheduler.create_slurm_script(job)
         subprocess.run(["sbatch", os.path.join(job.root_path, "bench.slurm")])
         job.set_status(Status.PENDING)
+        
+def check_status(inp_dir):
+    scheduler = Scheduler(inp_dir, "")
+    scheduler.check_status()
