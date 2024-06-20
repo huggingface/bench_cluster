@@ -46,7 +46,8 @@ python main.py --submit_jobs --inp_dir="results/"
 > 3) Append to existing log file
 
 ```
-python main.py --submit_jobs --only_fails --inp_dir="results/"
+python main.py submit_jobs --inp_dir "results/" --qos high --hf_token=<HF_TOKEN>
+# python main.py --submit_jobs --only_fails --inp_dir="results/" --qos high --hf_token=<HF_TOKEN>
 ```
 - Check status of jobs
 > Check status of all jobs and show stats [INIT/PENDING/COMPLETED/FAILS/RUNNING] 

@@ -80,13 +80,14 @@ class Scheduler:
         #SBATCH --ntasks-per-node=1
         #SBATCH --cpus-per-task=11
         
-        #TODO: change run_id
+        target_path_hf_hub = os.path.join(os.path.basename(os.path.dirname(job.root_path)), os.path.basename(job.root_path))
         
         context_bench = {
             'run_id': "12345",
             'nodes': nodes,
             'n_proc_per_node': n_proc_per_node,
             'root_path': job.root_path,
+            'target_path_hf_hub': target_path_hf_hub,
             "config": job.config,
             "qos": job.qos
         }
@@ -134,14 +135,15 @@ class Scheduler:
         print(f"{'-'*10}-|-{'-'*6}")
         print(f"{'Total':<10} | {total:<6}")
 
-def submit_jobs(inp_dir, qos, only_fails=False):
+def submit_jobs(inp_dir, qos, hf_token, only_fails=False):
     scheduler = Scheduler(inp_dir, qos)
 
-    #TODO: log to wandb the data or Hugingface Hub ?
     #TODO: Launch using slurm job array
     #TODO: Edit time in base_bench.slurm script
     #TODO: add option to do recomputer layer in Nanotron
     #TODO: add info in logs about profiler ?
+    env_vars = os.environ.copy()
+    env_vars["HUGGINGFACE_TOKEN"] = hf_token
     total_jobs = len(scheduler.job_lists)
 
     if only_fails:
@@ -156,7 +158,7 @@ def submit_jobs(inp_dir, qos, only_fails=False):
     
     for job in scheduler.job_lists:
         scheduler.create_slurm_script(job)
-        subprocess.run(["sbatch", os.path.join(job.root_path, "bench.slurm")])
+        subprocess.run(["sbatch", os.path.join(job.root_path, "bench.slurm")], env=env_vars)
         job.set_status(Status.PENDING)
         
 def check_status(inp_dir):

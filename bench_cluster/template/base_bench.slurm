@@ -48,6 +48,8 @@ export HF_DATASETS_CACHE="/admin/home/ferdinand_mom/.cache"
 export CUBLAS_WORKSPACE_CONFIG=":4096:8"
 export CUDA_DEVICE_MAX_CONNECTIONS="1"
 
+huggingface-cli login --token $HUGGINGFACE_TOKEN
+
 NANOTRON_REPO="/fsx/ferdinandmom/ferdinand-hf/bench_cluster/nanotron"
 CMD="$NANOTRON_REPO/run_train.py --config-file {{ config }}"
 
@@ -74,10 +76,22 @@ exit_status=$?
 if [ $exit_status -eq 0 ]; then
     printf "completed" > {{ root_path }}/status.txt
 else
-    printf "failed" > {{ root_path }}/status.txt
+    printf "fail" > {{ root_path }}/status.txt
 fi
 
 # Run the report script if the job completed successfully
 if [ $exit_status -eq 0 ]; then
     python /fsx/ferdinandmom/ferdinand-hf/bench_cluster/main.py report --inp_dir {{ root_path }}
+fi
+
+# Push to hub the folder using huggingface_cli
+if [ $exit_status -eq 0 ]; then
+    huggingface-cli upload nanotron/bench_cluster {{ root_path }} {{ target_path_hf_hub }} --commit-message "Upload {{ target_path_hf_hub }}"
+fi
+
+# Verify the upload
+if [ $? -eq 0 ]; then
+    echo "Uploading to Huggingface Hub successful"
+else
+    echo "Failed to upload to Huggingface Hub"
 fi
