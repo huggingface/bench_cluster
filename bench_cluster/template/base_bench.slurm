@@ -67,7 +67,17 @@ job_id=${SLURM_JOB_ID}
 update_status $job_id {{ root_path }}/status.txt &
 
 # Run the main command
-srun -u $LAUNCHER $CMD \
-  && printf "completed" > {{ root_path }}/status.txt || printf "failed" > {{ root_path }}/status.txt
+srun -u $LAUNCHER $CMD
+exit_status=$?
 
-  
+# Update status based on the exit status of `srun`
+if [ $exit_status -eq 0 ]; then
+    printf "completed" > {{ root_path }}/status.txt
+else
+    printf "failed" > {{ root_path }}/status.txt
+fi
+
+# Run the report script if the job completed successfully
+if [ $exit_status -eq 0 ]; then
+    python /fsx/ferdinandmom/ferdinand-hf/bench_cluster/main.py report --inp_dir {{ root_path }}
+fi
