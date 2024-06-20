@@ -18,6 +18,7 @@ def extract_metrics_from_files(file_paths):
     for file_path in file_paths:
         iteration_metrics = []
         memory_metrics = []
+        current_iteration = None
 
         with open(file_path, 'r') as file:
             for line in file:
@@ -31,8 +32,9 @@ def extract_metrics_from_files(file_paths):
                     r'grad_norm: ([\d\.]+)', line)
                 
                 if match_iteration:
+                    current_iteration = int(match_iteration.group(1))
                     metrics = {
-                        'iteration': int(match_iteration.group(1)),
+                        'iteration': current_iteration,
                         'consumed_tokens': parse_value(match_iteration.group(2)),
                         'elapsed_time_per_iteration_ms': parse_value(match_iteration.group(3)),
                         'tokens_per_sec': parse_value(match_iteration.group(4)),
@@ -51,8 +53,9 @@ def extract_metrics_from_files(file_paths):
                     r'\[default\d\]:\S+ \S+ \[INFO\|DP=\d\|PP=\d\|TP=\d\|\S+\]:  Memory usage: ([\d\.]+)MiB\. '
                     r'Peak allocated ([\d\.]+)MiB\. Peak reserved: ([\d\.]+)MiB', line)
 
-                if match_memory:
+                if match_memory and current_iteration is not None:
                     memory_metrics.append({
+                        'iteration': current_iteration,
                         'memory_usage_MiB': float(match_memory.group(1)),
                         'peak_allocated_MiB': float(match_memory.group(2)),
                         'peak_reserved_MiB': float(match_memory.group(3))
@@ -65,6 +68,7 @@ def extract_metrics_from_files(file_paths):
         }
         metrics_dict[file_path] = combined_metrics
     return metrics_dict
+
 
 def save_metrics_to_csv(metrics_dict):
     for file_path, data in metrics_dict.items():
@@ -93,15 +97,17 @@ def save_metrics_to_csv(metrics_dict):
 
             with open(csv_path, 'w', newline='') as output_file:
                 dict_writer = csv.DictWriter(output_file, fieldnames=memory_keys)
-                dict_writer
                 dict_writer.writeheader()
                 dict_writer.writerows(memory_metrics)
 
+
 def report(inp_dir):
     folders = [os.path.abspath(folder) for folder in glob.glob(os.path.join(inp_dir, "**"), recursive=True) if os.path.isdir(folder)]
-    
+
+    # TODO: In nanotron, log_memory at every step
+
     completed_logs_path = []
-    
+
     for folder in folders:
         status_file = os.path.join(folder, "status.txt")
         if os.path.exists(status_file):
@@ -114,5 +120,5 @@ def report(inp_dir):
 
     metrics_dict = extract_metrics_from_files(completed_logs_path)
     save_metrics_to_csv(metrics_dict)
-    
+
     print(f"Saved {len(metrics_dict)} csv files over {len(completed_logs_path)} completed logs")

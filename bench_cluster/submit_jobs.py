@@ -139,7 +139,9 @@ def submit_jobs(inp_dir, qos, only_fails=False):
 
     #TODO: log to wandb the data or Hugingface Hub ?
     #TODO: Launch using slurm job array
-    
+    #TODO: Edit time in base_bench.slurm script
+    #TODO: add option to do recomputer layer in Nanotron
+    #TODO: add info in logs about profiler ?
     total_jobs = len(scheduler.job_lists)
 
     if only_fails:
