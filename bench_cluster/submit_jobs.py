@@ -3,7 +3,6 @@ import os
 from jinja2 import Template
 import subprocess
 import yaml
-import glob
 
 class Status(Enum):
     # INIT -> PENDING -> [RUNNING | FAIL | OOM] -> COMPLETED
@@ -62,10 +61,9 @@ class Scheduler:
     
     def filter_out_jobs(self, status: Status):
         return [job for job in self.job_lists if job.status != status]
-    
+     
     def create_slurm_script(self, job: Job):
-        # Submit job to the cluster (edit jinja)
-        
+        # Submit job to the cluster (edit jinja)    
         # load yaml config.yaml
         with open(job.config, 'r') as file:
             config = yaml.load(file, Loader=yaml.FullLoader)
@@ -77,10 +75,6 @@ class Scheduler:
         n_proc_per_node = min(8, world_size // nodes)
         assert nodes * n_proc_per_node == world_size
         
-        #TODO: think about how to set the proper value for 
-        #SBATCH --ntasks-per-node=1
-        #SBATCH --cpus-per-task=11
-        
         target_path_hf_hub = os.path.join(os.path.basename(os.path.dirname(job.root_path)), os.path.basename(job.root_path))
         
         context_bench = {
@@ -90,7 +84,7 @@ class Scheduler:
             'root_path': job.root_path,
             'target_path_hf_hub': target_path_hf_hub,
             "config": job.config,
-            "qos": job.qos
+            "qos": job.qos,
         }
         
         with open("/fsx/ferdinandmom/ferdinand-hf/bench_cluster/bench_cluster/template/base_bench.slurm", 'r') as file:
@@ -140,11 +134,15 @@ class Scheduler:
 def submit_jobs(inp_dir, qos, hf_token, only_fails=False):
     scheduler = Scheduler(inp_dir, qos)
 
-    #TODO: Launch using slurm job array
+    #TODO: think about how to set the proper value for 
+    #SBATCH --ntasks-per-node=1
+    #SBATCH --cpus-per-task=11
     #TODO: Edit time in base_bench.slurm script
     #TODO: For how many steps do we have to run ?
     #TODO: add option to do recomputer layer in Nanotron
     #TODO: add info in logs about profiler ?
+    #TODO(fmom): add support for micro batch size
+
     env_vars = os.environ.copy()
     env_vars["HUGGINGFACE_TOKEN"] = hf_token
     total_jobs = len(scheduler.job_lists)
@@ -158,7 +156,8 @@ def submit_jobs(inp_dir, qos, hf_token, only_fails=False):
         print(f"Only {failed_jobs}/{total_jobs} jobs will be resubmitted")
     
     scheduler.job_lists = scheduler.filter_out_jobs(Status.COMPLETED)
-    
+
+    # Don't use job arrays
     for job in scheduler.job_lists:
         scheduler.create_slurm_script(job)
         subprocess.run(["sbatch", os.path.join(job.root_path, "bench.slurm")], env=env_vars)

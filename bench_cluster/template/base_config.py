@@ -92,7 +92,7 @@ base_config = {
         'limit_test_batches': 0,
         'limit_val_batches': 0,
         'micro_batch_size': 2,
-        'sequence_length': 256,
+        'sequence_length': 4096,
     },
     'logging': {
         'iteration_step_info_interval': 1,

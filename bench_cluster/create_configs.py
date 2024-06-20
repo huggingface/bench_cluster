@@ -30,18 +30,15 @@ def update_config_based_on_model(model: str, config: dict):
 def create_configs(out_dir: str, model: str, gpus: int):
     print(f"Creating configs for {model} given {gpus} GPUs")
     
-    #TODO(fmom): add support for
-    # 1) Seqlen
-    # 2) micro batch size
-    # 3) deepspeed zero stage 1
-
     # Generate all possible combinations of three numbers from 1 to gpus
     combinations_3D_parallelism = set()    
     for combination in itertools.product(range(1, gpus+1), repeat=3):
-        if combination[0] * combination[1] * combination[2] == gpus:
+        dp, tp, pp = combination
+        if dp * tp * pp <= gpus and tp <= 8:
             # Add all permutations of the combination
             for perm in itertools.permutations(combination):
                 combinations_3D_parallelism.add(perm)
+    
     
     # Create directories and write config files
     path = os.path.join(out_dir, model)
@@ -51,7 +48,6 @@ def create_configs(out_dir: str, model: str, gpus: int):
     config_content = deepcopy(base_config)
     update_config_based_on_model(model, config_content)
 
-    #TODO(fmom): Do I need to bound tp < 8 ? (to limit to a single node)
     # Initialize tqdm progress bar for the combinations loop
     for (dp, tp, pp) in tqdm(combinations_3D_parallelism, desc="Creating configs", unit="config"):
 
