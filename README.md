@@ -33,7 +33,7 @@ results/
 - Create all configs files by combining all the hyperparameters
 
 ```
-python main.py --create_configs --gpus=8 --out_dir="results/""
+python main.py create_configs -out_dir "results" --model llama7B --gpus 4
 ```
 - Submit jobs
 > - If `status.txt` doesnt exist, launch the job 
@@ -49,7 +49,7 @@ python main.py --submit_jobs --inp_dir="results/"
 python main.py --submit_jobs --only_fails --inp_dir="results/"
 ```
 - Check status of jobs
-> Check status of all jobs and show stats [SUCCEED/FAILS/RUNNING] 
+> Check status of all jobs and show stats [INIT/PENDING/COMPLETED/FAILS/RUNNING] 
 
 ```
 python main.py --check_status --inp_dir="results/"
@@ -57,11 +57,10 @@ python main.py --check_status --inp_dir="results/"
 
 - Create reporting
 > - Create `parsed_log.csv` for files that has status=COMPLETED only (default)
-> - `--redo-all`: redo for all folder
 > - Create a csv at top level folder with all infos of every runs like this: ![image](https://hackmd.io/_uploads/B13lzQkIC.png) 
 
 ```
-python main.py --report --redo-all --out_dir="results/"
+python main.py --report --out_dir="results/"
 ```
 
 - Create plots based on parsed logs
