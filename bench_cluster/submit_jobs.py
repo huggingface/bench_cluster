@@ -6,11 +6,12 @@ import yaml
 import glob
 
 class Status(Enum):
-    # INIT -> PENDING -> [RUNNING | FAIL] -> COMPLETED
+    # INIT -> PENDING -> [RUNNING | FAIL | OOM] -> COMPLETED
     INIT = "init"           # Job is created
     PENDING = "pending"     # Job is waiting for ressources
     RUNNING = "running"     # Job is running
     FAIL = "fail"           # Job failed
+    OOM = "oom"             # Job failed due to out of memory (expected behavior)
     COMPLETED = "completed" # Job is completed
 
 class Job:
@@ -113,6 +114,7 @@ class Scheduler:
             "pending": 0,
             "running": 0,
             "fail": 0,
+            "oom": 0,
             "completed": 0
         }
         
@@ -140,6 +142,7 @@ def submit_jobs(inp_dir, qos, hf_token, only_fails=False):
 
     #TODO: Launch using slurm job array
     #TODO: Edit time in base_bench.slurm script
+    #TODO: For how many steps do we have to run ?
     #TODO: add option to do recomputer layer in Nanotron
     #TODO: add info in logs about profiler ?
     env_vars = os.environ.copy()

@@ -76,7 +76,11 @@ exit_status=$?
 if [ $exit_status -eq 0 ]; then
     printf "completed" > {{ root_path }}/status.txt
 else
-    printf "fail" > {{ root_path }}/status.txt
+    if grep -q "OutOfMemoryError" {{ root_path }}/log-{{ run_id }}.out; then
+        printf "oom" > {{ root_path }}/status.txt
+    else
+        printf "fail" > {{ root_path }}/status.txt
+    fi 
 fi
 
 # Run the report script if the job completed successfully
