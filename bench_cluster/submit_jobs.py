@@ -138,6 +138,7 @@ def submit_jobs(inp_dir, qos, only_fails=False):
     scheduler = Scheduler(inp_dir, qos)
 
     #TODO: log to wandb the data or Hugingface Hub ?
+    #TODO: Launch using slurm job array
     
     total_jobs = len(scheduler.job_lists)
 
