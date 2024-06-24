@@ -7,7 +7,8 @@
 #SBATCH --gres=gpu:{{ n_proc_per_node }}
 #SBATCH --qos={{ qos }}
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=11
+#SBATCH --cpus-per-task=96
+#SBATCH --exclusive
 #SBATCH --output={{ root_path }}/log-{{ run_id }}.out
 #SBATCH --error={{ root_path }}/log-{{ run_id }}.out
 
@@ -50,6 +51,7 @@ export CUDA_DEVICE_MAX_CONNECTIONS="1"
 
 huggingface-cli login --token $HUGGINGFACE_TOKEN
 
+
 NANOTRON_REPO="/fsx/ferdinandmom/ferdinand-hf/bench_cluster/nanotron"
 CMD="$NANOTRON_REPO/run_train.py --config-file {{ config }}"
 
@@ -62,6 +64,10 @@ LAUNCHER="torchrun \
    --tee 3 \
    --node_rank ${SLURM_PROCID}"
 
+# Checkout the bench_cluster branch
+cd $NANOTRON_REPO
+git checkout bench_cluster
+cd ..
 # Get the current job ID
 job_id=${SLURM_JOB_ID}
 

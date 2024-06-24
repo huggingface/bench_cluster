@@ -134,13 +134,10 @@ class Scheduler:
 def submit_jobs(inp_dir, qos, hf_token, only_fails=False):
     scheduler = Scheduler(inp_dir, qos)
 
-    #TODO: think about how to set the proper value for 
-    #SBATCH --ntasks-per-node=1
-    #SBATCH --cpus-per-task=11
     #TODO: Edit time in base_bench.slurm script
     #TODO: For how many steps do we have to run ?
-    #TODO: add option to do recomputer layer in Nanotron
-    #TODO: add info in logs about profiler ?
+    #TODO: Save profiler info as well
+    #TODO: based on results folder pushed on hub, create a csv file with all the results
 
     env_vars = os.environ.copy()
     env_vars["HUGGINGFACE_TOKEN"] = hf_token
