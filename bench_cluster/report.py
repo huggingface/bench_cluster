@@ -2,10 +2,10 @@ import glob
 import os
 import re
 import csv
-from concurrent.futures import ThreadPoolExecutor
+import json
+from statistics import mean
 
-
-def parse_value(value):
+def units_to_float(value):
     if 'K' in value:
         return float(value.replace('K', '')) * 1000
     elif 'G' in value:
@@ -13,9 +13,25 @@ def parse_value(value):
     else:
         return float(value)
 
-def extract_metrics_from_files(file_paths):
+def parse_logs(inp_dir):
+    #TODO(fmom): fuse memory csv file to iteration csv file    
+    folders = [os.path.abspath(folder) for folder in glob.glob(os.path.join(inp_dir, "**"), recursive=True) if os.path.isdir(folder)]
+
+    completed_logs_path = []
+
+    for folder in folders:
+        status_file = os.path.join(folder, "status.txt")
+        if os.path.exists(status_file):
+            with open(status_file, "r") as f:
+                status = f.read().strip()
+            if status == "completed":
+                log_files = glob.glob(os.path.join(folder, "log-*.out"))
+                if log_files:
+                    completed_logs_path.append(log_files[0])
+
+    # Extract metrics from log files
     metrics_dict = {}
-    for file_path in file_paths:
+    for file_path in completed_logs_path:
         iteration_metrics = []
         memory_metrics = []
         current_iteration = None
@@ -35,10 +51,10 @@ def extract_metrics_from_files(file_paths):
                     current_iteration = int(match_iteration.group(1))
                     metrics = {
                         'iteration': current_iteration,
-                        'consumed_tokens': parse_value(match_iteration.group(2)),
-                        'elapsed_time_per_iteration_ms': parse_value(match_iteration.group(3)),
-                        'tokens_per_sec': parse_value(match_iteration.group(4)),
-                        'tokens_per_sec_per_gpu': parse_value(match_iteration.group(5)),
+                        'consumed_tokens': units_to_float(match_iteration.group(2)),
+                        'elapsed_time_per_iteration_ms': units_to_float(match_iteration.group(3)),
+                        'tokens_per_sec': units_to_float(match_iteration.group(4)),
+                        'tokens_per_sec_per_gpu': units_to_float(match_iteration.group(5)),
                         'global_batch_size': int(match_iteration.group(6)),
                         'lm_loss': float(match_iteration.group(7)),
                         'lr': float(match_iteration.group(8)),
@@ -67,10 +83,8 @@ def extract_metrics_from_files(file_paths):
             'memory': memory_metrics
         }
         metrics_dict[file_path] = combined_metrics
-    return metrics_dict
-
-
-def save_metrics_to_csv(metrics_dict):
+        
+    # Save metrics to csv files
     for file_path, data in metrics_dict.items():
         base_folder = os.path.dirname(file_path)
         base_name = os.path.basename(file_path)
@@ -100,25 +114,53 @@ def save_metrics_to_csv(metrics_dict):
                 dict_writer.writeheader()
                 dict_writer.writerows(memory_metrics)
 
-
-def report(inp_dir):
-    folders = [os.path.abspath(folder) for folder in glob.glob(os.path.join(inp_dir, "**"), recursive=True) if os.path.isdir(folder)]
-
-    # TODO: In nanotron, log_memory at every step
-
-    completed_logs_path = []
-
-    for folder in folders:
-        status_file = os.path.join(folder, "status.txt")
-        if os.path.exists(status_file):
-            with open(status_file, "r") as f:
-                status = f.read().strip()
-            if status == "completed":
-                log_files = glob.glob(os.path.join(folder, "log-*.out"))
-                if log_files:
-                    completed_logs_path.append(log_files[0])
-
-    metrics_dict = extract_metrics_from_files(completed_logs_path)
-    save_metrics_to_csv(metrics_dict)
-
     print(f"Saved {len(metrics_dict)} csv files over {len(completed_logs_path)} completed logs")
+
+def parse_profiler(inp_dir):
+    # /fsx/ferdinandmom/ferdinand-hf/bench_cluster/results/llama-1B/8_GPUS/dp-1_tp-2_pp-2_mbz-256/20240624-095924/ip-26-0-163-220_1136603.1719223186534915479.pt.trace.json    
+    
+    # Search for file finishing in .json in the inp_dir
+    file_path = glob.glob(os.path.join(inp_dir, "*.json"))
+    if not file_path:
+        raise ValueError(f"No .json file found in {inp_dir}")
+    
+    with open(file_path, 'r') as f:
+        trace_data = json.load(f)
+    
+    forward_durations = []
+    backward_durations = []
+    
+    for event in trace_data['traceEvents']:
+        if 'name' in event and 'dur' in event:
+            if event['name'] == "nanotron/parallel/pipeline_parallel/engine.py(26): forward":
+                forward_durations.append(event['dur'])
+            elif event['name'] == "nanotron/parallel/pipeline_parallel/engine.py(67): backward":
+                backward_durations.append(event['dur'])
+    
+    def _format_duration(duration):
+        ms = duration // 1000
+        us = duration % 1000
+        return f"{ms}ms {us}μs"
+    
+    # Go back one folder
+    prev_inp_dir = os.path.dirname(inp_dir)
+    
+    with open(os.path.join(prev_inp_dir, "profiler_results.csv"), 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(["forward", "backward"])
+        writer.writerow([_format_duration(int(mean(forward_durations))), _format_duration(int(mean(backward_durations)))])
+    
+
+def parse_network(inp_dir):
+    print("Parsing network")
+
+def report(inp_dir, is_profiler=False, is_network=False, is_logs=False):
+    
+    if is_logs:
+       parse_logs(inp_dir)
+    elif is_profiler:
+        parse_profiler(inp_dir)
+    elif is_network:
+        parse_network(inp_dir)
+    else:
+        raise ValueError("Please specify the type of report to generate")
