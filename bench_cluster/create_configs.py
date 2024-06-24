@@ -4,9 +4,9 @@ from bench_cluster.template.base_config import base_config
 import itertools
 import yaml
 import os
-from tqdm import tqdm
 from transformers import AutoTokenizer
 import math
+import pandas as pd
 
 def find_combinations_power_of_2(x):
     assert (x != 0) and (x & (x - 1) == 0)
@@ -28,11 +28,11 @@ def update_config_based_on_model(model: str, config: dict):
     if model == "llama-1B":
         # HuggingFaceFW/ablation-model-fineweb-v1
         config["model"]["model_config"]["hidden_size"] = 2048
-        config["model"]["model_config"]["intermediate_size"] = 8192
+        config["model"]["model_config"]["intermediate_size"] = 4096
         config["model"]["model_config"]["num_attention_heads"] = 32
         config["model"]["model_config"]["num_hidden_layers"] = 24
         config["model"]["model_config"]["num_key_value_heads"] = 32
-        config["model"]["model_config"]["max_position_embeddings"] = 2048
+        config["model"]["model_config"]["max_position_embeddings"] = 4096
     elif model == "llama-7B":
         # meta-llama/Llama-2-7b-hf
         config["model"]["model_config"]["hidden_size"] = 4096
@@ -63,6 +63,7 @@ def update_config_based_on_model(model: str, config: dict):
         config["model"]["model_config"]["num_attention_heads"] = 128
         config["model"]["model_config"]["num_hidden_layers"] = 126
         config["model"]["model_config"]["num_key_value_heads"] = 128
+        config["model"]["model_config"]["max_position_embeddings"] = 4096
     else:
         raise ValueError(f"Model {model} is not supported")  
 
@@ -72,6 +73,8 @@ def update_config_based_on_model(model: str, config: dict):
 
 def create_configs(out_dir: str, model: str, gpus: int):
     print(f"Creating configs for {model} given {gpus} GPUs")
+    
+    df = pd.DataFrame(columns=["model", "status", "nnodes", "dp", "tp", "pp", "batch_accumulation_per_replica", "micro_batch_size", "tok/s/gpu", "mfu", "memory"])    
     
     # Generate all possible combinations of three numbers from 1 to gpus
     combinations_3D_parallelism = set()    
@@ -93,7 +96,7 @@ def create_configs(out_dir: str, model: str, gpus: int):
     min_global_batch_size, max_global_batch_size = 4*1e6, 8*1e6
 
     # Initialize tqdm progress bar for the combinations loop
-    for (dp, tp, pp) in tqdm(combinations_3D_parallelism, desc="Creating configs", unit="config"):
+    for (dp, tp, pp) in combinations_3D_parallelism:
 
         config_content['parallelism']['dp'] = dp
         config_content['parallelism']['tp'] = tp
@@ -108,14 +111,38 @@ def create_configs(out_dir: str, model: str, gpus: int):
             if batch_accumulation_per_replica * micro_batch_size * dp * config_content["tokens"]["sequence_length"] < min_global_batch_size:
                 continue
             
-            config_content['parallelism']['batch_accumulation_per_replica'] = batch_accumulation_per_replica
-            config_content['parallelism']['micro_batch_size'] = micro_batch_size
+            config_content['tokens']['batch_accumulation_per_replica'] = batch_accumulation_per_replica
+            config_content['tokens']['micro_batch_size'] = micro_batch_size
             
             # Create a directory for each combination of parallelism
             run_path = os.path.join(path, f"dp-{dp}_tp-{tp}_pp-{pp}_mbz-{micro_batch_size}")
+            
+            # Get absoulte path for run_path
+            config_content['profiler']['profiler_export_path'] = os.path.abspath(run_path)
+             
             if not os.path.exists(run_path):
                 os.makedirs(run_path)
                 with open(os.path.join(run_path, "config.yaml"), "w") as new_config:
                     yaml.dump(config_content, new_config, default_flow_style=False, sort_keys=False)
-    
+                
+            world_size = dp * tp * pp
+            # Create an entry in dataframe
+            df.loc[len(df)] = {
+                "model": model,
+                "status": -1,
+                "nnodes": max(1, world_size // 8),
+                "dp": dp,
+                "tp": tp,
+                "pp": pp,
+                "batch_accumulation_per_replica": batch_accumulation_per_replica,
+                "micro_batch_size": micro_batch_size,
+                "tok/s/gpu": -1,
+                "mfu": -1,
+                "memory": -1
+            }
+
+    # check if file exists
+    if not os.path.exists(os.path.join(path, f"{gpus}_GPUS_results.csv")):
+        df.to_csv(os.path.join(path, f"{gpus}_GPUS_results.csv"), index=False)
+
     del config_content

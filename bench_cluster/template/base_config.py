@@ -60,6 +60,9 @@ base_config = {
         'tp_linear_async_communication': False,
         'tp_mode': 'REDUCE_SCATTER'
     },
+    'profiler': {
+        'profiler_export_path': None,
+    },
     'tokenizer':
     {
         'tokenizer_max_length': None,
