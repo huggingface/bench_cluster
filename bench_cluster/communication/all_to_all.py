@@ -1,7 +1,7 @@
 import torch
+import argparse
 import torch.distributed as dist
-from communication.utils import *
-from communication.constants import *
+from communication.utils import sync_all, print_rank_0, get_bw, get_metric_strings, convert_size, print_header, max_numel
 
 def timed_all_to_all(input, output, start_event, end_event, warmups, trials, async_op, bw_unit, raw):
     sync_all()
@@ -99,3 +99,20 @@ def run_all_to_all(local_rank, trials, warmups, maxsize, async_op, bw_unit, scan
                 if i == global_rank:
                     print(f"AllToAll Results at rank {global_rank}: {output}")
                 dist.barrier()
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--local_rank', type=int, default=0)
+    parser.add_argument('--trials', type=int, default=3)
+    parser.add_argument('--warmups', type=int, default=1)
+    parser.add_argument('--maxsize', type=int, default=24)
+    parser.add_argument('--async_op', action='store_true')
+    parser.add_argument('--bw_unit', type=str, default='Gbps')
+    parser.add_argument('--scan', action='store_true')
+    parser.add_argument('--raw', action='store_true')
+    parser.add_argument('--dtype', type=str, default='float32')
+    parser.add_argument('--mem_factor', type=float, default=0.1)
+    parser.add_argument('--debug', action='store_true')
+    
+    args = parser.parse_args()
+    run_all_to_all(args.local_rank, args.trials, args.warmups, args.maxsize, args.async_op, args.bw_unit, args.scan, args.raw, args.dtype, args.mem_factor, args.debug)

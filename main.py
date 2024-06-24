@@ -25,7 +25,9 @@ if __name__ == '__main__':
     
     #  Network bench
     network_bench_parser = subparsers.add_parser("network_bench")
+    network_bench_parser.add_argument("--out_dir", type=str, required=True)
     network_bench_parser.add_argument("--gpus", type=int, required=True, choices=[8, 16, 32, 64, 128, 256, 512])
+    network_bench_parser.add_argument("--qos", type=str, required=True, choices=["low", "normal", "high", "prod"])
     network_bench_parser.add_argument("--trials", type=int, default=DEFAULT_TRIALS, help='Number of timed iterations')
     network_bench_parser.add_argument("--warmups", type=int, default=DEFAULT_WARMUPS, help='Number of warmup (non-timed) iterations')
     network_bench_parser.add_argument("--maxsize", type=int, default=24, help='Max message size as a power of 2')
@@ -58,7 +60,7 @@ if __name__ == '__main__':
     elif args.action == "submit_jobs":
         submit_jobs(args.inp_dir, args.qos, args.hf_token, only_fails=args.only_fails)
     elif args.action == "network_bench":
-        network_bench(args.gpus, args.trials, args.warmups, args.maxsize, args.async_op, args.bw_unit, args.scan, args.raw, args.dtype, args.mem_factor, args.debug)
+        network_bench(args.out_dir, args.gpus, args.qos, args.trials, args.warmups, args.maxsize, args.async_op, args.bw_unit, args.scan, args.raw, args.dtype, args.mem_factor, args.debug)
     elif args.action == "check_status":
         check_status(args.inp_dir)
     elif args.action == "report":

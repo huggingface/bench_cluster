@@ -1,14 +1,12 @@
 # https://github.com/EleutherAI/cookbook/blob/main/benchmarks/communication/run_all.py
 import os
-from bench_cluster.communication.utils import *
-from bench_cluster.communication.all_reduce import run_all_reduce
-from bench_cluster.communication.all_gather import run_all_gather
-from bench_cluster.communication.all_to_all import run_all_to_all
-from bench_cluster.communication.p2p import run_p2p
-from bench_cluster.communication.broadcast import run_broadcast
+import subprocess
+from jinja2 import Template
 
 def network_bench(
+    out_dir: str,
     gpus: int,
+    qos: str,
     trials: int,
     warmups: int,
     maxsize: int,
@@ -20,20 +18,39 @@ def network_bench(
     mem_factor: float,
     debug: bool = False,
 ):
-    local_rank = int(os.environ["LOCAL_RANK"])
-    init_torch_distributed(backend='nccl', local_rank=local_rank)
+    os.makedirs(out_dir, exist_ok=True)
+    
+    root_path = os.path.join(out_dir, f"network_bench_{gpus}_GPUS")
+    slurm_script = "/fsx/ferdinandmom/ferdinand-hf/bench_cluster/bench_cluster/template/base_network_bench.slurm"
+    
+    with open(slurm_script, "r") as f:
+        base_network_bench_file = f.read()
 
-    ops_to_run = ['all_gather', 'all_reduce', 'all_to_all', 'broadcast', 'p2p']
+    base_network_bench_template = Template(base_network_bench_file)
 
-    #NOTE(fmom): If you receive SIGTERM signal, lower the mem-factor
-    for comm_op in ops_to_run:
-        if comm_op == 'all_gather':
-            run_all_gather(local_rank, trials, warmups, maxsize, async_op, bw_unit, scan, raw, dtype, mem_factor, debug)
-        if comm_op == 'all_reduce':
-            run_all_reduce(local_rank, trials, warmups, maxsize, async_op, bw_unit, scan, raw, dtype, mem_factor, debug)
-        if comm_op == 'all_to_all':
-            run_all_to_all(local_rank, trials, warmups, maxsize, async_op, bw_unit, scan, raw, dtype, mem_factor, debug)
-        if comm_op == 'p2p':
-            run_p2p(local_rank, trials, warmups, maxsize, async_op, bw_unit, scan, raw, dtype, mem_factor, debug)
-        if comm_op == 'broadcast':
-            run_broadcast(local_rank, trials, warmups, maxsize, async_op, bw_unit, scan, raw, dtype, mem_factor, debug)
+    nodes = max(1, gpus // 8)
+    n_proc_per_node = min(8, gpus // nodes)
+    assert nodes * n_proc_per_node == gpus
+    
+    context_bench = {
+        'nodes': nodes,
+        'n_proc_per_node': n_proc_per_node,
+        'qos': qos,
+        'root_path': root_path,
+        'trials': trials,
+        'warmups': warmups,
+        'maxsize': maxsize,
+        'async_op': async_op,
+        'bw_unit': bw_unit,
+        'scan': scan,
+        'raw': raw,
+        'dtype': dtype,
+        'mem_factor': mem_factor,
+        'debug': debug
+    }
+
+    with open(slurm_script, 'w') as file:
+        file.write(base_network_bench_template.render(context_bench))
+
+    subprocess.run(["sbatch", slurm_script])
+    print(f"Submitted network benchmark job with {gpus} GPUs")
