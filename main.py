@@ -2,7 +2,9 @@ from argparse import ArgumentParser
 
 from bench_cluster.create_configs import create_configs
 from bench_cluster.submit_jobs import submit_jobs, check_status
+from bench_cluster.network_bench import network_bench
 from bench_cluster.report import report
+from bench_cluster.communication.constants import DEFAULT_TRIALS, DEFAULT_WARMUPS, DEFAULT_UNIT, DEFAULT_TYPE
 
 if __name__ == '__main__':
     parser = ArgumentParser()
@@ -21,6 +23,20 @@ if __name__ == '__main__':
     submit_jobs_parser.add_argument("--only_fails", action="store_true", default=False)
     submit_jobs_parser.add_argument("--hf_token", type=str, required=True)
     
+    #  Network bench
+    network_bench_parser = subparsers.add_parser("network_bench")
+    network_bench_parser.add_argument("--gpus", type=int, required=True, choices=[8, 16, 32, 64, 128, 256, 512])
+    network_bench_parser.add_argument("--trials", type=int, default=DEFAULT_TRIALS, help='Number of timed iterations')
+    network_bench_parser.add_argument("--warmups", type=int, default=DEFAULT_WARMUPS, help='Number of warmup (non-timed) iterations')
+    network_bench_parser.add_argument("--maxsize", type=int, default=24, help='Max message size as a power of 2')
+    network_bench_parser.add_argument("--async-op", action="store_true", help='Enables non-blocking communication')
+    network_bench_parser.add_argument("--bw-unit", type=str, default=DEFAULT_UNIT, choices=['Gbps', 'GBps'])
+    network_bench_parser.add_argument("--scan", action="store_true", help='Enables scanning all message sizes')
+    network_bench_parser.add_argument("--raw", action="store_true", help='Print the message size and latency without units')
+    network_bench_parser.add_argument("--dtype", type=str, default=DEFAULT_TYPE, help='PyTorch tensor dtype')
+    network_bench_parser.add_argument("--mem-factor", type=float, default=.1, help='Proportion of max available GPU memory to use for single-size evals')
+    network_bench_parser.add_argument("--debug", action="store_true", help='Enables all_to_all debug prints')
+
     # Check status
     check_status_parser = subparsers.add_parser("check_status")
     check_status_parser.add_argument("--inp_dir", type=str, required=True)
@@ -38,10 +54,12 @@ if __name__ == '__main__':
         create_configs(args.out_dir, args.model, args.gpus)
     elif args.action == "submit_jobs":
         submit_jobs(args.inp_dir, args.qos, args.hf_token, only_fails=args.only_fails)
+    elif args.action == "network_bench":
+        network_bench(args.gpus, args.trials, args.warmups, args.maxsize, args.async_op, args.bw_unit, args.scan, args.raw, args.dtype, args.mem_factor, args.debug)
     elif args.action == "check_status":
         check_status(args.inp_dir)
     elif args.action == "report":
-        report(args.inp_dir)
+        report(args.inp_dir)    
     elif args.action == "plots":
         pass
     else:
