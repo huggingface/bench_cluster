@@ -1,3 +1,4 @@
+import os
 import torch
 import argparse
 import torch.distributed as dist
@@ -95,6 +96,7 @@ if __name__ == '__main__':
     parser.add_argument('--mem_factor', type=float, default=0.1)
     parser.add_argument('--debug', action='store_true')
     
-    args = parser.parse_args()
-    init_torch_distributed("nccl", args.local_rank)
-    run_broadcast(args.local_rank, args.trials, args.warmups, args.maxsize, args.async_op, args.bw_unit, args.scan, args.raw, args.dtype, args.mem_factor, args.debug)
+    args = parser.parse_args()    
+    local_rank = int(os.environ['LOCAL_RANK'])
+    init_torch_distributed("nccl", local_rank)
+    run_broadcast(local_rank, args.trials, args.warmups, args.maxsize, args.async_op, args.bw_unit, args.scan, args.raw, args.dtype, args.mem_factor, args.debug)

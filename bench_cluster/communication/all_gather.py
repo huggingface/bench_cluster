@@ -1,5 +1,5 @@
 # https://raw.githubusercontent.com/EleutherAI/cookbook/main/benchmarks/communication/all_gather.py
-
+import os
 import torch
 import argparse
 import torch.distributed as dist
@@ -108,7 +108,6 @@ def run_all_gather(local_rank, trials, warmups, maxsize, async_op, bw_unit, scan
         
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--local_rank', type=int, default=0)
     parser.add_argument('--trials', type=int, default=3)
     parser.add_argument('--warmups', type=int, default=1)
     parser.add_argument('--maxsize', type=int, default=24)
@@ -121,5 +120,6 @@ if __name__ == '__main__':
     parser.add_argument('--debug', action='store_true')
     
     args = parser.parse_args()
-    init_torch_distributed("nccl", args.local_rank)
-    run_all_gather(args.local_rank, args.trials, args.warmups, args.maxsize, args.async_op, args.bw_unit, args.scan, args.raw, args.dtype, args.mem_factor, args.debug)
+    local_rank = int(os.environ["LOCAL_RANK"])
+    init_torch_distributed("nccl", local_rank)
+    run_all_gather(local_rank, args.trials, args.warmups, args.maxsize, args.async_op, args.bw_unit, args.scan, args.raw, args.dtype, args.mem_factor, args.debug)

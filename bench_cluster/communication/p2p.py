@@ -1,3 +1,4 @@
+import os
 import torch
 import argparse
 import torch.distributed as dist
@@ -118,5 +119,6 @@ if __name__ == '__main__':
     parser.add_argument('--debug', action='store_true')
     
     args = parser.parse_args()
-    init_torch_distributed("nccl", args.local_rank)
-    run_p2p(args.local_rank, args.trials, args.warmups, args.maxsize, args.async_op, args.bw_unit, args.scan, args.raw, args.dtype, args.mem_factor, args.debug)
+    local_rank = int(os.environ['LOCAL_RANK'])
+    init_torch_distributed("nccl", local_rank)
+    run_p2p(local_rank, args.trials, args.warmups, args.maxsize, args.async_op, args.bw_unit, args.scan, args.raw, args.dtype, args.mem_factor, args.debug)
