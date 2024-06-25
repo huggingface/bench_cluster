@@ -74,7 +74,7 @@ def update_config_based_on_model(model: str, config: dict):
 def create_configs(out_dir: str, model: str, gpus: int):
     print(f"Creating configs for {model} given {gpus} GPUs")
     
-    df = pd.DataFrame(columns=["model", "status", "nnodes", "dp", "tp", "pp", "batch_accumulation_per_replica", "micro_batch_size", "tok/s/gpu", "mfu", "memory"])    
+    df = pd.DataFrame(columns=["model", "run_name", "status", "nnodes", "dp", "tp", "pp", "batch_accumulation_per_replica", "micro_batch_size", "tok/s/gpu", "mfu", "forward", "backward"])    
     
     # Generate all possible combinations of three numbers from 1 to gpus
     combinations_3D_parallelism = set()    
@@ -129,7 +129,8 @@ def create_configs(out_dir: str, model: str, gpus: int):
             # Create an entry in dataframe
             df.loc[len(df)] = {
                 "model": model,
-                "status": -1,
+                "run_name": f"dp-{dp}_tp-{tp}_pp-{pp}_mbz-{micro_batch_size}",
+                "status": str(""),
                 "nnodes": max(1, world_size // 8),
                 "dp": dp,
                 "tp": tp,
@@ -138,11 +139,11 @@ def create_configs(out_dir: str, model: str, gpus: int):
                 "micro_batch_size": micro_batch_size,
                 "tok/s/gpu": -1,
                 "mfu": -1,
-                "memory": -1
+                "memory": -1,
+                "forward": str(""),
+                "backward": str(""),
             }
 
     # check if file exists
-    if not os.path.exists(os.path.join(path, f"{gpus}_GPUS_results.csv")):
-        df.to_csv(os.path.join(path, f"{gpus}_GPUS_results.csv"), index=False)
-
+    df.to_csv(os.path.join(path, f"{gpus}_GPUS_summary_results.csv"), index=False)
     del config_content

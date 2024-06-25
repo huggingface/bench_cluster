@@ -48,6 +48,7 @@ if __name__ == '__main__':
     report_parser.add_argument("--is_profiler", action="store_true", default=False)
     report_parser.add_argument("--is_network", action="store_true", default=False)  
     report_parser.add_argument("--is_logs", action="store_true", default=False)
+    report_parser.add_argument("--global_summary", action="store_true", default=False)
     
     # Plots
     plots_parser = subparsers.add_parser("plots")
@@ -64,7 +65,7 @@ if __name__ == '__main__':
     elif args.action == "check_status":
         check_status(args.inp_dir)
     elif args.action == "report":
-        report(args.inp_dir, args.is_profiler, args.is_network, args.is_logs)
+        report(args.inp_dir, args.is_profiler, args.is_network, args.is_logs, args.global_summary)
     elif args.action == "plots":
         pass
     else:

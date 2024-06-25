@@ -3,6 +3,7 @@ import os
 import re
 import csv
 import json
+import pandas as pd
 from statistics import mean
 
 def units_to_float(value):
@@ -75,12 +76,8 @@ def parse_logs(inp_dir):
     # Save metrics to csv files
     for file_path, data in metrics_dict.items():
         base_folder = os.path.dirname(file_path)
-        base_name = os.path.basename(file_path)
-        base_name_without_ext = os.path.splitext(base_name)[0]
-
         if data:
-            csv_file_name = f"{base_name_without_ext}_metrics.csv"
-            csv_path = os.path.join(base_folder, csv_file_name)
+            csv_path = os.path.join(base_folder,  "log_metrics.csv")
 
             with open(csv_path, 'w', newline='') as output_file:
                 fieldnames = data[0].keys()
@@ -175,7 +172,58 @@ def parse_network(inp_dir):
 
         print(f"Data from {file_path} has been written to {output_file}")
 
-def report(inp_dir, is_profiler=False, is_network=False, is_logs=False):
+def create_global_summary(inp_dir):
+    file_paths = glob.glob(os.path.join(inp_dir, "**", "*.csv"), recursive=True)
+    if not file_paths:
+        raise ValueError(f"No .csv file found in {inp_dir}")
+
+    summary_results_csv = [file for file in file_paths if "summary_results" in file]
+    assert len(summary_results_csv) == 1, "There should be exactly one summary_results csv file"
+    log_metrics_csv = [file for file in file_paths if "log_metrics" in file]
+    profiler_csv = [file for file in file_paths if "profiler" in file]
+    
+    summary_results_pd = pd.read_csv(summary_results_csv[0])
+    summary_results_pd["status"] = summary_results_pd["status"].astype(str)
+    summary_results_pd["forward"] = summary_results_pd["forward"].astype(str)
+    summary_results_pd["backward"] = summary_results_pd["backward"].astype(str)
+    
+    log_metrics_dfs = {}
+    for file in log_metrics_csv:
+        run_name = file.split("/")[-2]
+        log_metrics_dfs[run_name] = pd.read_csv(file)
+
+    profiler_dfs = {}
+    for file in profiler_csv:
+        run_name = file.split("/")[-2]
+        profiler_dfs[run_name] = pd.read_csv(file)
+    
+    #NOTE(fmom): For now, we only take the max value of everything    
+    for run_name in summary_results_pd["run_name"]:
+        # Get the associated row in the summary_results csv
+        index = summary_results_pd[summary_results_pd["run_name"] == run_name].index[0]
+        
+        # Tokens per sec per gpu
+        summary_results_pd.loc[index, "tok/s/gpu"] = log_metrics_dfs[run_name]["tokens_per_sec_per_gpu"].max() 
+        
+        # MFU
+        # summary_results_pd.loc[index, "mfu"] = ???
+        
+        # Status
+        status_file = os.path.join(inp_dir, run_name, "status.txt")
+        if os.path.exists(status_file):
+            with open(status_file, "r") as f:
+                status = f.read().strip()
+            summary_results_pd.loc[index, "status"] = status
+        
+        # Forward
+        summary_results_pd.loc[index, "forward"] = profiler_dfs[run_name]["forward"].values[0]
+        # Backward
+        summary_results_pd.loc[index, "backward"] = profiler_dfs[run_name]["backward"].values[0]
+    
+    summary_results_pd.to_csv(summary_results_csv[0], index=False)
+    print(f"Create {summary_results_csv[0]} with new metrics")
+    
+def report(inp_dir, is_profiler=False, is_network=False, is_logs=False, global_summary=False):
     
     if is_logs:
        parse_logs(inp_dir)
@@ -183,5 +231,7 @@ def report(inp_dir, is_profiler=False, is_network=False, is_logs=False):
         parse_profiler(inp_dir)
     elif is_network:
         parse_network(inp_dir)
+    elif global_summary:
+        create_global_summary(inp_dir) 
     else:
         raise ValueError("Please specify the type of report to generate")
