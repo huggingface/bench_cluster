@@ -134,8 +134,6 @@ class Scheduler:
 def submit_jobs(inp_dir, qos, hf_token, only_fails=False):
     scheduler = Scheduler(inp_dir, qos)
 
-    #TODO: Edit time in base_bench.slurm script
-    #TODO: Extract statistics from trace files
     #TODO: Since adding profiler, submit_jobs has to not take into account the subfolder created by the profiler
     #TODO: based on results folder pushed on hub, create a csv file with all the results
     

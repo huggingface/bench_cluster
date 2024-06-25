@@ -14,9 +14,7 @@ def units_to_float(value):
         return float(value)
 
 def parse_logs(inp_dir):
-    #TODO(fmom): fuse memory csv file to iteration csv file    
     folders = [os.path.abspath(folder) for folder in glob.glob(os.path.join(inp_dir, "**"), recursive=True) if os.path.isdir(folder)]
-
     completed_logs_path = []
 
     for folder in folders:
@@ -29,16 +27,13 @@ def parse_logs(inp_dir):
                 if log_files:
                     completed_logs_path.append(log_files[0])
 
-    # Extract metrics from log files
     metrics_dict = {}
     for file_path in completed_logs_path:
-        iteration_metrics = []
-        memory_metrics = []
+        metrics = {}
         current_iteration = None
 
         with open(file_path, 'r') as file:
             for line in file:
-                # Match the pattern for iterations
                 match_iteration = re.search(
                     r'\[default\d\]:\S+ \S+ \[INFO\|DP=\d\|PP=\d\|TP=\d\|\S+\]: iteration: (\d+) / \d+ \| '
                     r'consumed_tokens: ([\d\.K]+) \| elapsed_time_per_iteration_ms: ([\d\.K]+) \| '
@@ -49,7 +44,7 @@ def parse_logs(inp_dir):
                 
                 if match_iteration:
                     current_iteration = int(match_iteration.group(1))
-                    metrics = {
+                    metrics[current_iteration] = {
                         'iteration': current_iteration,
                         'consumed_tokens': units_to_float(match_iteration.group(2)),
                         'elapsed_time_per_iteration_ms': units_to_float(match_iteration.group(3)),
@@ -62,27 +57,20 @@ def parse_logs(inp_dir):
                         'hardware_tflops_per_gpu': float(match_iteration.group(10)),
                         'grad_norm': float(match_iteration.group(11))
                     }
-                    iteration_metrics.append(metrics)
 
-                # Match the pattern for memory usage
                 match_memory = re.search(
                     r'\[default\d\]:\S+ \S+ \[INFO\|DP=\d\|PP=\d\|TP=\d\|\S+\]:  Memory usage: ([\d\.]+)MiB\. '
                     r'Peak allocated ([\d\.]+)MiB\. Peak reserved: ([\d\.]+)MiB', line)
 
                 if match_memory and current_iteration is not None:
-                    memory_metrics.append({
-                        'iteration': current_iteration,
-                        'memory_usage_MiB': float(match_memory.group(1)),
-                        'peak_allocated_MiB': float(match_memory.group(2)),
-                        'peak_reserved_MiB': float(match_memory.group(3))
-                    })
+                    if current_iteration in metrics:
+                        metrics[current_iteration].update({
+                            'memory_usage_MiB': float(match_memory.group(1)),
+                            'peak_allocated_MiB': float(match_memory.group(2)),
+                            'peak_reserved_MiB': float(match_memory.group(3))
+                        })
 
-        # Combine iteration and memory metrics, if any
-        combined_metrics = {
-            'iterations': iteration_metrics,
-            'memory': memory_metrics
-        }
-        metrics_dict[file_path] = combined_metrics
+        metrics_dict[file_path] = list(metrics.values())
         
     # Save metrics to csv files
     for file_path, data in metrics_dict.items():
@@ -90,66 +78,74 @@ def parse_logs(inp_dir):
         base_name = os.path.basename(file_path)
         base_name_without_ext = os.path.splitext(base_name)[0]
 
-        # Save iteration metrics
-        if data['iterations']:
-            iteration_metrics = data['iterations']
-            iteration_keys = iteration_metrics[0].keys()
-            csv_file_name = f"{base_name_without_ext}_iterations.csv"
+        if data:
+            csv_file_name = f"{base_name_without_ext}_metrics.csv"
             csv_path = os.path.join(base_folder, csv_file_name)
 
             with open(csv_path, 'w', newline='') as output_file:
-                dict_writer = csv.DictWriter(output_file, fieldnames=iteration_keys)
+                fieldnames = data[0].keys()
+                dict_writer = csv.DictWriter(output_file, fieldnames=fieldnames)
                 dict_writer.writeheader()
-                dict_writer.writerows(iteration_metrics)
-
-        # Save memory metrics
-        if data['memory']:
-            memory_metrics = data['memory']
-            memory_keys = memory_metrics[0].keys()
-            csv_file_name = f"{base_name_without_ext}_memory.csv"
-            csv_path = os.path.join(base_folder, csv_file_name)
-
-            with open(csv_path, 'w', newline='') as output_file:
-                dict_writer = csv.DictWriter(output_file, fieldnames=memory_keys)
-                dict_writer.writeheader()
-                dict_writer.writerows(memory_metrics)
+                dict_writer.writerows(data)
 
     print(f"Saved {len(metrics_dict)} csv files over {len(completed_logs_path)} completed logs")
 
 def parse_profiler(inp_dir):
-    # /fsx/ferdinandmom/ferdinand-hf/bench_cluster/results/llama-1B/8_GPUS/dp-1_tp-2_pp-2_mbz-256/20240624-095924/ip-26-0-163-220_1136603.1719223186534915479.pt.trace.json    
-    
-    # Search for file finishing in .json in the inp_dir
-    file_path = glob.glob(os.path.join(inp_dir, "*.json"))
-    if not file_path:
+    # Search for files ending in .json in the inp_dir and its subdirectories
+    file_paths = glob.glob(os.path.join(inp_dir, "**", "*.json"), recursive=True)
+    if not file_paths:
         raise ValueError(f"No .json file found in {inp_dir}")
     
-    with open(file_path, 'r') as f:
-        trace_data = json.load(f)
-    
-    forward_durations = []
-    backward_durations = []
-    
-    for event in trace_data['traceEvents']:
-        if 'name' in event and 'dur' in event:
-            if event['name'] == "nanotron/parallel/pipeline_parallel/engine.py(26): forward":
-                forward_durations.append(event['dur'])
-            elif event['name'] == "nanotron/parallel/pipeline_parallel/engine.py(67): backward":
-                backward_durations.append(event['dur'])
+    all_forward_durations = []
+    all_backward_durations = []
     
     def _format_duration(duration):
         ms = duration // 1000
         us = duration % 1000
         return f"{ms}ms {us}μs"
-    
-    # Go back one folder
-    prev_inp_dir = os.path.dirname(inp_dir)
-    
-    with open(os.path.join(prev_inp_dir, "profiler_results.csv"), 'w', newline='') as f:
-        writer = csv.writer(f)
-        writer.writerow(["forward", "backward"])
-        writer.writerow([_format_duration(int(mean(forward_durations))), _format_duration(int(mean(backward_durations)))])
-    
+        
+    for file_path in file_paths:
+        print(f"Processing file: {file_path}")
+        
+        with open(file_path, 'r') as f:
+            trace_data = json.load(f)
+        
+        forward_durations = []
+        backward_durations = []
+        
+        for event in trace_data['traceEvents']:
+            if 'name' in event and 'dur' in event:
+                if "forward" in event['name'].lower():
+                    forward_durations.append(event['dur'])
+                elif "backward" in event['name'].lower():
+                    backward_durations.append(event['dur'])
+        
+        if forward_durations:
+            all_forward_durations.extend(forward_durations)
+        if backward_durations:
+            all_backward_durations.extend(backward_durations)
+        
+        # Write the mean forward and backward durations to a csv file
+        pattern = re.compile(r'dp-\d+_tp-\d+_pp-\d+_mbz-\d+')
+        matching_index = next((i for i, part in enumerate(file_path.split("/")) if pattern.match(part)), None)
+        
+        if matching_index is None:
+            raise ValueError(f"Could not find the specified pattern in {file_paths[0]}")
+
+        assert matching_index < len(file_path.split("/")) - 1, "Matching index is out of bounds"
+        output_file = "/".join(file_path.split("/")[:matching_index + 1]) + "/profiler.csv"
+        
+        if all_forward_durations or all_backward_durations:
+            with open(output_file, 'w', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow(["forward", "backward"])
+                writer.writerow([
+                    _format_duration(int(mean(all_forward_durations))) if all_forward_durations else "N/A",
+                    _format_duration(int(mean(all_backward_durations))) if all_backward_durations else "N/A"
+                ])
+            print(f"Results written to {output_file}")
+        else:
+            print("No forward or backward durations found in any file.")
 
 def parse_network(inp_dir):
     file_paths = glob.glob(os.path.join(inp_dir, "*.out"))
@@ -178,16 +174,6 @@ def parse_network(inp_dir):
             writer.writerows(data)
 
         print(f"Data from {file_path} has been written to {output_file}")
-
-def write_csv(data, filename='performance_data.csv'):
-    headers = ['Primitive', 'Size (Bytes)', 'Description', 'Duration', 'Throughput (Gbps)', 'BusBW (Gbps)']
-    
-    with open(filename, 'w', newline='') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(headers)
-        writer.writerows(data)
-
-    print(f"Data has been written to {filename}")
 
 def report(inp_dir, is_profiler=False, is_network=False, is_logs=False):
     

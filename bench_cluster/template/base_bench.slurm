@@ -91,7 +91,8 @@ fi
 
 # Run the report script if the job completed successfully
 if [ $exit_status -eq 0 ]; then
-    python /fsx/ferdinandmom/ferdinand-hf/bench_cluster/main.py report --inp_dir {{ root_path }}
+    python /fsx/ferdinandmom/ferdinand-hf/bench_cluster/main.py report --inp_dir {{ root_path }} --is_logs
+    python /fsx/ferdinandmom/ferdinand-hf/bench_cluster/main.py report --inp_dir {{ root_path }} --is_profiler
 fi
 
 # Push to hub the folder using huggingface_cli
