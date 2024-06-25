@@ -152,7 +152,42 @@ def parse_profiler(inp_dir):
     
 
 def parse_network(inp_dir):
-    print("Parsing network")
+    file_paths = glob.glob(os.path.join(inp_dir, "*.out"))
+    if not file_paths:
+        raise ValueError(f"No log file found in {inp_dir}")
+    
+    primitives = ['all_gather', 'all_reduce', 'all_to_all', 'broadcast', 'p2p']
+    headers = ['Primitive', 'Size (Bytes)', 'Description', 'Duration', 'Throughput (Gbps)', 'BusBW (Gbps)']
+
+    for file_path in file_paths:
+        with open(file_path, 'r') as file:
+            input_text = file.read()
+        
+        data = []
+        for primitive in primitives:
+            pattern = rf"---- Performance of {primitive}.*?Size \(Bytes\).*?(\d+\.?\d*\s+[GMK]?B)\s+(\S+)\s+(\d+\.?\d*\s+ms)\s+(\d+\.?\d*)\s+(\d+\.?\d*)"
+            match = re.search(pattern, input_text, re.DOTALL)
+            if match:
+                size, description, duration, throughput, busbw = match.groups()
+                data.append([primitive, size, description, duration, throughput, busbw])
+
+        output_file = os.path.splitext(file_path)[0] + '.csv'
+        with open(output_file, 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(headers)
+            writer.writerows(data)
+
+        print(f"Data from {file_path} has been written to {output_file}")
+
+def write_csv(data, filename='performance_data.csv'):
+    headers = ['Primitive', 'Size (Bytes)', 'Description', 'Duration', 'Throughput (Gbps)', 'BusBW (Gbps)']
+    
+    with open(filename, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(headers)
+        writer.writerows(data)
+
+    print(f"Data has been written to {filename}")
 
 def report(inp_dir, is_profiler=False, is_network=False, is_logs=False):
     

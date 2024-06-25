@@ -14,7 +14,7 @@ if __name__ == '__main__':
     create_configs_parser = subparsers.add_parser("create_configs")
     create_configs_parser.add_argument("--out_dir", type=str, required=True)
     create_configs_parser.add_argument("--model", type=str, required=True)
-    create_configs_parser.add_argument("--gpus", type=int, required=True, choices=[8, 16, 32, 64, 128, 256, 512])
+    create_configs_parser.add_argument("--gpus", type=int, required=True, choices=[2, 8, 16, 32, 64, 128, 256, 512])
 
     # Submit jobs
     submit_jobs_parser = subparsers.add_parser("submit_jobs")
@@ -64,7 +64,7 @@ if __name__ == '__main__':
     elif args.action == "check_status":
         check_status(args.inp_dir)
     elif args.action == "report":
-        report(args.inp_dir, args.extract_profiler, args.extract_network, args.extract_logs)
+        report(args.inp_dir, args.is_profiler, args.is_network, args.is_logs)
     elif args.action == "plots":
         pass
     else:
