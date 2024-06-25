@@ -53,7 +53,8 @@ class Job:
 class Scheduler:
     
     def __init__(self, inp_dir: str, qos: str) -> None:
-        jobs_directory_paths = [os.path.abspath(root) for root, dirs, _ in os.walk(inp_dir) if not dirs]        
+        jobs_directory_paths = [os.path.abspath(root) for root, dirs, _ in os.walk(inp_dir) if not dirs]
+        jobs_directory_paths = [job_path.replace("/profiler", "") if "profiler" in job_path else job_path for job_path in jobs_directory_paths]
         self.job_lists = [Job(job_path, qos) for job_path in jobs_directory_paths]
 
     def keep_only_jobs(self, status: Status):
@@ -134,7 +135,6 @@ class Scheduler:
 def submit_jobs(inp_dir, qos, hf_token, only_fails=False):
     scheduler = Scheduler(inp_dir, qos)
 
-    #TODO: Since adding profiler, submit_jobs has to not take into account the subfolder created by the profiler
     #TODO: based on results folder pushed on hub, create a csv file with all the results
     
     env_vars = os.environ.copy()
