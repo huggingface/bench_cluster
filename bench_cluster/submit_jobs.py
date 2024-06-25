@@ -135,8 +135,7 @@ class Scheduler:
 def submit_jobs(inp_dir, qos, hf_token, only_fails=False):
     scheduler = Scheduler(inp_dir, qos)
 
-    #TODO: based on results folder pushed on hub, create a csv file with all the results
-    
+    #TODO: batch into job arrays
     env_vars = os.environ.copy()
     env_vars["HUGGINGFACE_TOKEN"] = hf_token
     total_jobs = len(scheduler.job_lists)

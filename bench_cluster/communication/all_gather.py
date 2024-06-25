@@ -20,7 +20,6 @@ def timed_all_gather(input, output, start_event, end_event, warmups, trials, asy
     # time the actual comm op trials times and average it
     start_event.record()
     for i in range(trials):
-        #TODO(fmom): is this correct ?
         output_tensors = list(torch.chunk(output, dist.get_world_size(), dim=0))
         dist.all_gather(output_tensors, input, group=None, async_op=async_op)
 
