@@ -2,7 +2,7 @@ import torch
 import os, sys
 import math
 import torch.distributed as dist
-from .constants import *
+from bench_cluster.communication.constants import *
 
 def print_rank_0(message):
     if dist.get_rank() == 0:

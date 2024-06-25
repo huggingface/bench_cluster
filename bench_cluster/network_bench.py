@@ -18,12 +18,13 @@ def network_bench(
     mem_factor: float,
     debug: bool = False,
 ):
-    os.makedirs(out_dir, exist_ok=True)
-    
-    root_path = os.path.join(out_dir, f"network_bench_{gpus}_GPUS")
-    slurm_script = "/fsx/ferdinandmom/ferdinand-hf/bench_cluster/bench_cluster/template/base_network_bench.slurm"
-    
-    with open(slurm_script, "r") as f:
+    root_path = os.path.join(out_dir, f"network_bench")    
+    os.makedirs(root_path, exist_ok=True)
+
+    slurm_script = os.path.join(root_path, f"network_bench_{gpus}_gpus.slurm")
+    base_slurm_script = "/fsx/ferdinandmom/ferdinand-hf/bench_cluster/bench_cluster/template/base_network_bench.slurm"
+        
+    with open(base_slurm_script, "r") as f:
         base_network_bench_file = f.read()
 
     base_network_bench_template = Template(base_network_bench_file)

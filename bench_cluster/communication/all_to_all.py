@@ -1,7 +1,7 @@
 import torch
 import argparse
 import torch.distributed as dist
-from communication.utils import sync_all, print_rank_0, get_bw, get_metric_strings, convert_size, print_header, max_numel
+from bench_cluster.communication.utils import sync_all, print_rank_0, get_bw, get_metric_strings, convert_size, print_header, max_numel, init_torch_distributed
 
 def timed_all_to_all(input, output, start_event, end_event, warmups, trials, async_op, bw_unit, raw):
     sync_all()
@@ -115,4 +115,5 @@ if __name__ == '__main__':
     parser.add_argument('--debug', action='store_true')
     
     args = parser.parse_args()
+    init_torch_distributed("nccl", args.local_rank)
     run_all_to_all(args.local_rank, args.trials, args.warmups, args.maxsize, args.async_op, args.bw_unit, args.scan, args.raw, args.dtype, args.mem_factor, args.debug)
