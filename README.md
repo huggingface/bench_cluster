@@ -1,9 +1,10 @@
 # bench_cluster
 
+- TODO: git submodule for specific nanotron branch
 ```
 pip install -e .
 pip install -r requirements.txt
-cd nanotron
+cd nanotron # Checkout bench_cluster branch
 pip install -e .
 pip install flash_attn==2.5.0
 cd ..
@@ -11,62 +12,56 @@ cd ..
 
 ### Workflow
 
-> - Pattern for folder naming `run-config-<model>-tp-*-pp-*-dp-*-seqlen-*-mbz-*-actrecomp-*`
 ```
 results/
-    - report.csv
-    - nanotron.slurm
-    - run-config-tp-*-pp-*.../
-        - ckpts/*
-        - config.yaml
-        - log.out
-        - parsed_log.csv
-        - status.txt
-        - plots/*.png
+    - network_bench/
+        - network_bench_8_gpus.slurm
+        - log_8_gpus.out
+        - ...
+        - network_bench_512_gpus.slurm
+    - llama-1B/
+        - 8_GPUS/
+            - 8_GPUS_summary_results.csv
+            - dp-1_tp-8_pp-1_mbz-1/
+                - profiler/*.json
+                - bench.slurm
+                - config.yaml
+                - log_metrics.csv
+                - log.out
+                - profiler.csv
+                - status.txt
+            ...
+            - dp-8_tp-1_pp-1_mbz-256/
+        ...
+        - 512_GPUS/
     ...
-    - run-config-tp-*-pp-*.../
-        - ....
+    - llama-7B/
 ```
 
 ### Usage
 
-- Create all configs files by combining all the hyperparameters
+```shell
+# Create above workflow with all possible combinations of hyper-parameters 
+python main.py create_configs --out_dir "results" --model llama-1B --gpus 8      
 
-```
-python main.py create_configs -out_dir "results" --model llama7B --gpus 4
-```
-- Submit jobs
-> - If `status.txt` doesnt exist, launch the job 
-```
-python main.py --submit_jobs --inp_dir="results/"
-``` 
-- Relaunch jobs based on status
-> 1) Check those who has failed status
-> 2) Resume jobs from last checkpoints
-> 3) Append to existing log file
+# Launch all the jobs in `results/` folder 
+python main.py submit_jobs --inp_dir results/  --qos high --hf_token <YOUR_HF_TOKEN> 
 
-```
-python main.py submit_jobs --inp_dir "results/" --qos high --hf_token=<HF_TOKEN>
-# python main.py --submit_jobs --only_fails --inp_dir="results/" --qos high --hf_token=<HF_TOKEN>
-```
-- Check status of jobs
-> Check status of all jobs and show stats [INIT/PENDING/COMPLETED/FAILS/RUNNING] 
+# Can as well batch jobs into 4 dependencies array 
+python main.py submit_jobs --inp_dir results/ --qos high --hf_token <YOUR_HF_TOKEN> --nb_slurm_array 4
 
-```
-python main.py --check_status --inp_dir="results/"
-```   
+# Check status of runs (INIT/PENDING/RUNNING/FAIL/OOM/COMPLETED)
+python main.py check_status --inp_dir results/
 
-- Create reporting
-> - Create `parsed_log.csv` for files that has status=COMPLETED only (default)
-> - Create a csv at top level folder with all infos of every runs like this: ![image](https://hackmd.io/_uploads/B13lzQkIC.png) 
+# Automatically rerun the jobs with status FAIL
+python main.py submit_jobs --inp_dir results/  --qos high --hf_token <YOUR_HF_TOKEN> --only_fails
 
-```
-python main.py --report --out_dir="results/"
-```
+# Bench intra/inter-connect of gpus
+python main.py network_bench --out_dir results/ --qos=high --gpus=8
 
-- Create plots based on parsed logs
-> - if results.csv exists, create plots
+# Extract into CSV logs, network and profiler info (NOTE: this is automatically done when using `submit_jobs`)
+python main.py report --inp_dir results/ [--is_logs | --is_network | --is_profiler]
 
-```
-python main.py --plots
+# Create a global summary CSV file based on all exisiting csv runs file
+python main.py report --inp_dir results/  --global_summary
 ```
