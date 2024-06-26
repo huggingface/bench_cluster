@@ -3,6 +3,7 @@ import os
 from jinja2 import Template
 import subprocess
 import yaml
+from typing import List 
 
 class Status(Enum):
     # INIT -> PENDING -> [RUNNING | FAIL | OOM] -> COMPLETED
@@ -99,7 +100,25 @@ class Scheduler:
             file.write(base_bench_template.render(context_bench))
 
         print(f"Slurm script created at {output_file_path}")
-            
+    
+    def launch_dependency(self, job_array: List[Job], index_with_array, previous_job_id=None):
+
+        slurm_scripts = [os.path.join(job.root_path, "bench.slurm") for job in job_array]
+                
+        slurm_command = [
+            "sbatch",
+            f"--array=0-{len(job_array) - 1}",
+            f"--job-name=bench_job_{index_with_array}_array_%A",
+        ]
+        
+        if previous_job_id:
+            slurm_command.append(f"--dependency=afterany:{previous_job_id}")
+        
+        slurm_command.append(slurm_scripts[index_with_array])
+        result = subprocess.run(slurm_command, capture_output=True, text=True)
+        job_id = result.stdout.strip().split()[-1]
+        return job_id
+  
     def check_status(self):
         # find all status files using self.jobs_directory_paths
         status_files = [os.path.join(job.root_path, "status.txt") for job in self.job_lists]
@@ -132,7 +151,7 @@ class Scheduler:
         print(f"{'-'*10}-|-{'-'*6}")
         print(f"{'Total':<10} | {total:<6}")
 
-def submit_jobs(inp_dir, qos, hf_token, only_fails=False):
+def submit_jobs(inp_dir, qos, hf_token, nb_slurm_array, only_fails=False):
     scheduler = Scheduler(inp_dir, qos)
 
     #TODO: batch into job arrays
@@ -150,11 +169,37 @@ def submit_jobs(inp_dir, qos, hf_token, only_fails=False):
     
     scheduler.job_lists = scheduler.filter_out_jobs(Status.COMPLETED)
 
-    # Don't use job arrays
-    for job in scheduler.job_lists:
-        scheduler.create_slurm_script(job)
-        subprocess.run(["sbatch", os.path.join(job.root_path, "bench.slurm")], env=env_vars)
-        job.set_status(Status.PENDING)
+    if nb_slurm_array > 0:
+        # Use job dependecies
+        
+        # Distribute the jobs into the arrays        
+        base_jobs_per_array = len(scheduler.job_lists) // nb_slurm_array
+        extra_jobs = len(scheduler.job_lists) % nb_slurm_array
+        distribution = [base_jobs_per_array] * nb_slurm_array
+        for i in range(extra_jobs):
+            distribution[i] += 1
+        
+        start = 0
+        
+        for i, nb_jobs in enumerate(distribution):
+            previous_job_id = None
+            end = start + nb_jobs
+            job_array = scheduler.job_lists[start:end]
+            
+            print(f"Launching job Dependency array {i+1} with {nb_jobs} jobs")
+            
+            for index_within_array, job in enumerate(job_array):
+                scheduler.create_slurm_script(job)
+                job.set_status(Status.PENDING)
+                previous_job_id = scheduler.launch_dependency(job_array, index_within_array, previous_job_id)
+            
+            start = end
+    else:
+        # Don't use job dependecies
+        for job in scheduler.job_lists:
+            scheduler.create_slurm_script(job)
+            subprocess.run(["sbatch", os.path.join(job.root_path, "bench.slurm")], env=env_vars)
+            job.set_status(Status.PENDING)
         
 def check_status(inp_dir):
     scheduler = Scheduler(inp_dir, "")

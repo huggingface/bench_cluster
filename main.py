@@ -22,6 +22,7 @@ if __name__ == '__main__':
     submit_jobs_parser.add_argument("--qos", type=str, required=True, choices=["low", "normal", "high", "prod"]) 
     submit_jobs_parser.add_argument("--only_fails", action="store_true", default=False)
     submit_jobs_parser.add_argument("--hf_token", type=str, required=True)
+    submit_jobs_parser.add_argument("--nb_slurm_array", type=int, default=0)
     
     #  Network bench
     network_bench_parser = subparsers.add_parser("network_bench")
@@ -58,7 +59,7 @@ if __name__ == '__main__':
     if args.action == "create_configs":
         create_configs(args.out_dir, args.model, args.gpus)
     elif args.action == "submit_jobs":
-        submit_jobs(args.inp_dir, args.qos, args.hf_token, only_fails=args.only_fails)
+        submit_jobs(args.inp_dir, args.qos, args.hf_token, args.nb_slurm_array, only_fails=args.only_fails)
     elif args.action == "network_bench":
         #TODO: take into account boolean into scripts
         network_bench(args.out_dir, args.gpus, args.qos, args.trials, args.warmups, args.maxsize, args.async_op, args.bw_unit, args.scan, args.raw, args.dtype, args.mem_factor, args.debug)
