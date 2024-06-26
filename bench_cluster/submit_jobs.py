@@ -101,24 +101,18 @@ class Scheduler:
 
         print(f"Slurm script created at {output_file_path}")
     
-    def launch_dependency(self, job_array: List[Job], index_with_array, previous_job_id=None):
+    def launch_dependency(self, job_array: List[Job], env_vars):
+        
+        prev_job_id = None
+        for job in job_array:
+            if prev_job_id is None:         
+                result = subprocess.run(["sbatch", '--parsable', os.path.join(job.root_path, "bench.slurm")], env=env_vars, capture_output=True, text=True)
+            else:
+                result = subprocess.run(["sbatch", '--parsable', '--dependency=afterany:'+prev_job_id, os.path.join(job.root_path, "bench.slurm")], env=env_vars, capture_output=True, text=True)
+            job.set_status(Status.PENDING)
+            prev_job_id = result.stdout.strip()
+                    
 
-        slurm_scripts = [os.path.join(job.root_path, "bench.slurm") for job in job_array]
-                
-        slurm_command = [
-            "sbatch",
-            f"--array=0-{len(job_array) - 1}",
-            f"--job-name=bench_job_{index_with_array}_array_%A",
-        ]
-        
-        if previous_job_id:
-            slurm_command.append(f"--dependency=afterany:{previous_job_id}")
-        
-        slurm_command.append(slurm_scripts[index_with_array])
-        result = subprocess.run(slurm_command, capture_output=True, text=True)
-        job_id = result.stdout.strip().split()[-1]
-        return job_id
-  
     def check_status(self):
         # find all status files using self.jobs_directory_paths
         status_files = [os.path.join(job.root_path, "status.txt") for job in self.job_lists]
@@ -188,10 +182,10 @@ def submit_jobs(inp_dir, qos, hf_token, nb_slurm_array, only_fails=False):
             
             print(f"Launching job Dependency array {i+1} with {nb_jobs} jobs")
             
-            for index_within_array, job in enumerate(job_array):
+            for job in job_array:
                 scheduler.create_slurm_script(job)
-                job.set_status(Status.PENDING)
-                previous_job_id = scheduler.launch_dependency(job_array, index_within_array, previous_job_id)
+
+            scheduler.launch_dependency(job_array, env_vars)
             
             start = end
     else:
