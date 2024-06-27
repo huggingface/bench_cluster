@@ -77,7 +77,7 @@ class Scheduler:
         n_proc_per_node = min(8, world_size // nodes)
         assert nodes * n_proc_per_node == world_size
         
-        target_path_hf_hub = os.path.join(os.path.basename(os.path.dirname(job.root_path)), os.path.basename(job.root_path))
+        target_path_hf_hub = os.path.join(os.path.basename(os.path.dirname(os.path.dirname(job.root_path))), target_path_hf_hub)
         
         context_bench = {
             'run_id': "12345",
