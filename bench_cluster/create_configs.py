@@ -80,7 +80,7 @@ def create_configs(out_dir: str, model: str, gpus: int):
     combinations_3D_parallelism = set()    
     for combination in itertools.product(range(1, gpus+1), repeat=3):
         dp, tp, pp = combination
-        if dp * tp * pp <= gpus and tp <= 8:
+        if dp * tp * pp == gpus and tp <= 8:
             # Add all permutations of the combination
             for perm in itertools.permutations(combination):
                 combinations_3D_parallelism.add(perm)
