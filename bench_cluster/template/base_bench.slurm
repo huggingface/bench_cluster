@@ -95,10 +95,9 @@ if [ $exit_status -eq 0 ]; then
     python /fsx/ferdinandmom/ferdinand-hf/bench_cluster/main.py report --inp_dir {{ root_path }} --is_profiler
 fi
 
+
 # Push to hub the folder using huggingface_cli
-if [ $exit_status -eq 0 ]; then
-    huggingface-cli upload nanotron/bench_cluster {{ root_path }} {{ target_path_hf_hub }} --commit-message "Upload {{ target_path_hf_hub }}"
-fi
+huggingface-cli upload nanotron/bench_cluster {{ root_path }} {{ target_path_hf_hub }} --commit-message "Upload {{ target_path_hf_hub }}"
 
 # Verify the upload
 if [ $? -eq 0 ]; then
