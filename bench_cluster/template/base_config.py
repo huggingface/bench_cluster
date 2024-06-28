@@ -56,6 +56,7 @@ base_config = {
         "dp": 1,
         'expert_parallel_size': 1,
         "pp": 1,
+        "pp_engine": "1f1b",
         "tp": 1,
         'tp_linear_async_communication': False,
         'tp_mode': 'REDUCE_SCATTER'
