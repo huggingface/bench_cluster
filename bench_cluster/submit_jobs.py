@@ -81,7 +81,6 @@ class Scheduler:
         target_path_hf_hub = os.path.join(os.path.basename(os.path.dirname(os.path.dirname(job.root_path))), os.path.basename(os.path.dirname(job.root_path)), os.path.basename(job.root_path))
         
         context_bench = {
-            'run_id': "12345",
             'nodes': nodes,
             'n_proc_per_node': n_proc_per_node,
             'root_path': job.root_path,
