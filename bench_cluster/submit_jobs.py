@@ -6,12 +6,13 @@ import yaml
 from typing import List 
 
 class Status(Enum):
-    # INIT -> PENDING -> [RUNNING | FAIL | OOM] -> COMPLETED
+    # INIT -> PENDING -> [RUNNING | FAIL | TIMEOUT OOM] -> COMPLETED
     INIT = "init"           # Job is created
     PENDING = "pending"     # Job is waiting for ressources
     RUNNING = "running"     # Job is running
     FAIL = "fail"           # Job failed
     OOM = "oom"             # Job failed due to out of memory (expected behavior)
+    TIMEOUT = "timeout"     # Job failed due to timeout
     COMPLETED = "completed" # Job is completed
 
 class Job:
@@ -123,6 +124,7 @@ class Scheduler:
             "running": 0,
             "fail": 0,
             "oom": 0,
+            "timeout": 0,
             "completed": 0
         }
         

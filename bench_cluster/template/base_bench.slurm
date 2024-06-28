@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --job-name=bench_cluster-{{ run_id }}
-#SBATCH --time=00:10:00
+#SBATCH --time=00:59:00
 #SBATCH --partition=hopper-prod
 #SBATCH --nodes={{ nodes }}
 #SBATCH --gres=gpu:{{ n_proc_per_node }}
@@ -84,6 +84,8 @@ if [ $exit_status -eq 0 ]; then
 else
     if grep -q "OutOfMemoryError" {{ root_path }}/log-{{ run_id }}.out; then
         printf "oom" > {{ root_path }}/status.txt
+    elif grep -q "Timeout at NCCL" {{ root_path }}/log-{{ run_id }}.out; then
+        printf "timeout" > {{ root_path }}/status.txt
     else
         printf "fail" > {{ root_path }}/status.txt
     fi 
