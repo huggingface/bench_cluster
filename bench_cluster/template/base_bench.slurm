@@ -9,8 +9,8 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=96
 #SBATCH --exclusive
-#SBATCH --output={{ root_path }}/log-.out
-#SBATCH --error={{ root_path }}/log-.out
+#SBATCH --output={{ root_path }}/log.out
+#SBATCH --error={{ root_path }}/log.out
 
 # Function to update status based on squeue output
 update_status() {
