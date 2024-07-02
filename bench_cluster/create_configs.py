@@ -110,6 +110,11 @@ def create_configs(out_dir: str, model: str, gpus: int):
             
             if batch_accumulation_per_replica * micro_batch_size * dp * config_content["tokens"]["sequence_length"] < min_global_batch_size:
                 continue
+            elif batch_accumulation_per_replica < pp - 1:
+                # self.n_micro_batches_per_batch = self.config.tokens.batch_accumulation_per_replica
+                # self.pipeline_engine.nb_microbatches = self.n_micro_batches_per_batch
+                #NOTE: assert self.nb_microbatches >= pg.size() - 1
+                continue
             
             config_content['tokens']['batch_accumulation_per_replica'] = batch_accumulation_per_replica
             config_content['tokens']['micro_batch_size'] = micro_batch_size
