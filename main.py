@@ -1,7 +1,7 @@
 from argparse import ArgumentParser
 
 from bench_cluster.create_configs import create_configs
-from bench_cluster.submit_jobs import submit_jobs, check_status
+from bench_cluster.submit_jobs import submit_jobs
 from bench_cluster.network_bench import network_bench
 from bench_cluster.report import report
 from bench_cluster.communication.constants import DEFAULT_TRIALS, DEFAULT_WARMUPS, DEFAULT_UNIT, DEFAULT_TYPE
