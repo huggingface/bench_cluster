@@ -195,7 +195,3 @@ def submit_jobs(inp_dir, qos, hf_token, nb_slurm_array, only_fails=False):
             scheduler.create_slurm_script(job)
             subprocess.run(["sbatch", os.path.join(job.root_path, "bench.slurm")], env=env_vars)
             job.set_status(Status.PENDING)
-        
-def check_status(inp_dir):
-    scheduler = Scheduler(inp_dir, "")
-    scheduler.check_status()

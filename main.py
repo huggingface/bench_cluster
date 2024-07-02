@@ -39,9 +39,6 @@ if __name__ == '__main__':
     network_bench_parser.add_argument("--dtype", type=str, default=DEFAULT_TYPE, help='PyTorch tensor dtype')
     network_bench_parser.add_argument("--mem_factor", type=float, default=.1, help='Proportion of max available GPU memory to use for single-size evals')
     network_bench_parser.add_argument("--debug", action="store_true", help='Enables all_to_all debug prints')
-    # Check status
-    check_status_parser = subparsers.add_parser("check_status")
-    check_status_parser.add_argument("--inp_dir", type=str, required=True)
     
     # Report
     report_parser = subparsers.add_parser("report")
@@ -63,8 +60,6 @@ if __name__ == '__main__':
     elif args.action == "network_bench":
         #TODO: take into account boolean into scripts
         network_bench(args.out_dir, args.gpus, args.qos, args.trials, args.warmups, args.maxsize, args.async_op, args.bw_unit, args.scan, args.raw, args.dtype, args.mem_factor, args.debug)
-    elif args.action == "check_status":
-        check_status(args.inp_dir)
     elif args.action == "report":
         report(args.inp_dir, args.is_profiler, args.is_network, args.is_logs, args.global_summary)
     elif args.action == "plots":

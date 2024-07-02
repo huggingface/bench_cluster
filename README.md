@@ -51,8 +51,7 @@ python main.py submit_jobs --inp_dir results/  --qos high --hf_token <YOUR_HF_TO
 python main.py submit_jobs --inp_dir results/ --qos high --hf_token <YOUR_HF_TOKEN> --nb_slurm_array 4
 
 # Check status of runs (INIT/PENDING/RUNNING/FAIL/OOM/COMPLETED)
-python main.py check_status --inp_dir results/
-
+./check_status.sh results/
 # Automatically rerun the jobs with status FAIL
 python main.py submit_jobs --inp_dir results/  --qos high --hf_token <YOUR_HF_TOKEN> --only_fails
 
