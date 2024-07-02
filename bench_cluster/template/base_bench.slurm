@@ -82,11 +82,11 @@ exit_status=$?
 if [ $exit_status -eq 0 ]; then
     printf "completed" > {{ root_path }}/status.txt
 else
-    if grep -q "OutOfMemoryError" {{ root_path }}/log-.out; then
+    if grep -q "OutOfMemoryError" {{ root_path }}/log.out; then
         printf "oom" > {{ root_path }}/status.txt
-    elif grep -q " CUDA error: an illegal memory access" {{ root_path }}/log-.out; then
+    elif grep -q " CUDA error: an illegal memory access" {{ root_path }}/log.out; then
         printf "oom" > {{ root_path }}/status.txt
-    elif grep -q "Timeout at NCCL" {{ root_path }}/log-.out; then
+    elif grep -q "Timeout at NCCL" {{ root_path }}/log.out; then
         printf "timeout" > {{ root_path }}/status.txt
     else
         printf "fail" > {{ root_path }}/status.txt
