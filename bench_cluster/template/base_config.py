@@ -83,7 +83,7 @@ base_config = {
                     'hf_dataset_splits': 'train',
                     'text_column_name': 'text'
                 },
-                'num_loading_workers': 32,
+                'num_loading_workers': 0,
                 'seed': 42
             }
         }
