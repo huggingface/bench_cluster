@@ -9,6 +9,8 @@ from statistics import mean
 def units_to_float(value):
     if 'K' in value:
         return float(value.replace('K', '')) * 1000
+    elif 'M' in value:
+        return float(value.replace('M', '')) * 1000000
     elif 'G' in value:
         return float(value.replace('G', '')) * 1000000000
     else:
@@ -24,7 +26,7 @@ def parse_logs(inp_dir):
             with open(status_file, "r") as f:
                 status = f.read().strip()
             if status == "completed":
-                log_files = glob.glob(os.path.join(folder, "log-*.out"))
+                log_files = glob.glob(os.path.join(folder, "log.out"))
                 if log_files:
                     completed_logs_path.append(log_files[0])
 
@@ -37,12 +39,12 @@ def parse_logs(inp_dir):
             for line in file:
                 match_iteration = re.search(
                     r'\[default\d\]:\S+ \S+ \[INFO\|DP=\d\|PP=\d\|TP=\d\|\S+\]: iteration: (\d+) / \d+ \| '
-                    r'consumed_tokens: ([\d\.K]+) \| elapsed_time_per_iteration_ms: ([\d\.K]+) \| '
-                    r'tokens_per_sec: ([\d\.K]+) \| tokens_per_sec_per_gpu: ([\d\.K]+) \| '
-                    r'global_batch_size: (\d+) \| lm_loss: ([\d\.]+) \| lr: ([\de\.-]+) \| '
+                    r'consumed_tokens: ([\d\.KM]+) \| elapsed_time_per_iteration_ms: ([\d\.KM]+) \| '
+                    r'tokens_per_sec: ([\d\.KM]+) \| tokens_per_sec_per_gpu: ([\d\.KM]+) \| '
+                    r'global_batch_size: ([\d\.KM]+) \| lm_loss: ([\d\.]+) \| lr: ([\de\.-]+) \| '
                     r'model_tflops_per_gpu: ([\d\.]+) \| hardware_tflops_per_gpu: ([\d\.]+) \| '
-                    r'grad_norm: ([\d\.]+)', line)
-                
+                    r'grad_norm: ([\d\.]+).*', line)
+                                
                 if match_iteration:
                     current_iteration = int(match_iteration.group(1))
                     metrics[current_iteration] = {
@@ -51,7 +53,7 @@ def parse_logs(inp_dir):
                         'elapsed_time_per_iteration_ms': units_to_float(match_iteration.group(3)),
                         'tokens_per_sec': units_to_float(match_iteration.group(4)),
                         'tokens_per_sec_per_gpu': units_to_float(match_iteration.group(5)),
-                        'global_batch_size': int(match_iteration.group(6)),
+                        'global_batch_size': units_to_float(match_iteration.group(6)),
                         'lm_loss': float(match_iteration.group(7)),
                         'lr': float(match_iteration.group(8)),
                         'model_tflops_per_gpu': float(match_iteration.group(9)),
