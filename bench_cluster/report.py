@@ -4,6 +4,7 @@ import re
 import csv
 import json
 import pandas as pd
+import torch
 from statistics import mean
 
 def units_to_float(value):
@@ -174,6 +175,29 @@ def parse_network(inp_dir):
 
         print(f"Data from {file_path} has been written to {output_file}")
 
+# https://github.com/stanford-cs336/spring2024-lectures/blob/main/lecture_02.py#L919
+def get_promised_flop_per_sec(device: str, dtype: torch.dtype) -> float:
+    """Return the peak FLOP/s for `device` operating on `dtype`."""
+    properties = torch.cuda.get_device_properties(device)
+
+    if "A100" in properties.name:
+        # https://www.nvidia.com/content/dam/en-zz/Solutions/Data-Center/a100/pdf/nvidia-a100-datasheet-us-nvidia-1758950-r4-web.pdf")
+        if dtype == torch.float32:
+            return 19.5e12
+        if dtype in (torch.bfloat16, torch.float16):
+            return 312e12
+        raise ValueError(f"Unknown dtype: {dtype}")
+
+    if "H100" in properties.name:
+        # https://resources.nvidia.com/en-us-tensor-core/nvidia-tensor-core-gpu-datasheet")
+        if dtype == torch.float32:
+            return 67.5e12
+        if dtype in (torch.bfloat16, torch.float16):
+            return 1979e12 / 2  # 1979 is for sparse, dense is half of that
+        raise ValueError(f"Unknown dtype: {dtype}")
+
+    raise ValueError(f"Unknown device: {device}")
+
 def create_global_summary(inp_dir):
     file_paths = glob.glob(os.path.join(inp_dir, "**", "*.csv"), recursive=True)
     if not file_paths:
@@ -199,24 +223,26 @@ def create_global_summary(inp_dir):
         run_name = file.split("/")[-2]
         profiler_dfs[run_name] = pd.read_csv(file)
     
-    #NOTE(fmom): For now, we only take the max value of everything    
     for run_name in summary_results_pd["run_name"]:
         # Get the associated row in the summary_results csv
         index = summary_results_pd[summary_results_pd["run_name"] == run_name].index[0]
-        
-        # Tokens per sec per gpu
-        summary_results_pd.loc[index, "tok/s/gpu"] = log_metrics_dfs[run_name]["tokens_per_sec_per_gpu"].max() 
-        
-        # MFU
-        # summary_results_pd.loc[index, "mfu"] = ???
-        
+       
         # Status
         status_file = os.path.join(inp_dir, run_name, "status.txt")
         if os.path.exists(status_file):
             with open(status_file, "r") as f:
                 status = f.read().strip()
             summary_results_pd.loc[index, "status"] = status
+
+        if summary_results_pd.loc[index, "status"] in ["timeout", "oom", "fail"]:
+            continue
         
+        # Tokens per sec per gpu
+        summary_results_pd.loc[index, "tok/s/gpu"] = log_metrics_dfs[run_name]["tokens_per_sec_per_gpu"].astype(float).mean() 
+        
+        # MFU (bf16)
+        summary_results_pd.loc[index, "mfu"] = (log_metrics_dfs[run_name]["model_tflops_per_gpu"].astype(int).mean() / get_promised_flop_per_sec(device="cuda", dtype=torch.bfloat16)) * 100
+         
         # Forward
         summary_results_pd.loc[index, "forward"] = profiler_dfs[run_name]["forward"].values[0]
         # Backward
