@@ -83,7 +83,8 @@ def create_configs(out_dir: str, model: str, gpus: int):
         if dp * tp * pp == gpus and tp <= 8:
             # Add all permutations of the combination
             for perm in itertools.permutations(combination):
-                combinations_3D_parallelism.add(perm)
+                if perm[1] <= 8:  # tp <= 8
+                    combinations_3D_parallelism.add(perm)
 
     # Create directories and write config files
     path = os.path.join(out_dir, model + f"/{gpus}_GPUS")
