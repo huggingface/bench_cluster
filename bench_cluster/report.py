@@ -181,19 +181,21 @@ def get_promised_flop_per_sec(device: str, dtype: torch.dtype) -> float:
     properties = torch.cuda.get_device_properties(device)
 
     if "A100" in properties.name:
+        # they are exponent 12
         # https://www.nvidia.com/content/dam/en-zz/Solutions/Data-Center/a100/pdf/nvidia-a100-datasheet-us-nvidia-1758950-r4-web.pdf")
         if dtype == torch.float32:
-            return 19.5e12
+            return 19.5
         if dtype in (torch.bfloat16, torch.float16):
-            return 312e12
+            return 312
         raise ValueError(f"Unknown dtype: {dtype}")
 
     if "H100" in properties.name:
         # https://resources.nvidia.com/en-us-tensor-core/nvidia-tensor-core-gpu-datasheet")
+        # they are exponent 12
         if dtype == torch.float32:
-            return 67.5e12
+            return 67.5
         if dtype in (torch.bfloat16, torch.float16):
-            return 1979e12 / 2  # 1979 is for sparse, dense is half of that
+            return 1979 / 2  # 1979 is for sparse, dense is half of that
         raise ValueError(f"Unknown dtype: {dtype}")
 
     raise ValueError(f"Unknown device: {device}")
@@ -234,7 +236,7 @@ def create_global_summary(inp_dir):
                 status = f.read().strip()
             summary_results_pd.loc[index, "status"] = status
 
-        if summary_results_pd.loc[index, "status"] in ["timeout", "oom", "fail"]:
+        if summary_results_pd.loc[index, "status"] in ["timeout", "oom", "fail", "pending", "running"]:
             continue
         
         # Tokens per sec per gpu
