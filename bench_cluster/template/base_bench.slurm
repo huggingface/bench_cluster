@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --job-name=bench_cluster
-#SBATCH --time=00:59:00
+#SBATCH --time=02:00:00
 #SBATCH --partition=hopper-prod
 #SBATCH --nodes={{ nodes }}
 #SBATCH --gres=gpu:{{ n_proc_per_node }}
