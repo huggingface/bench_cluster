@@ -225,6 +225,8 @@ def create_global_summary(inp_dir):
         run_name = file.split("/")[-2]
         profiler_dfs[run_name] = pd.read_csv(file)
     
+    skip_profiling_steps = 7
+    
     for run_name in summary_results_pd["run_name"]:
         # Get the associated row in the summary_results csv
         index = summary_results_pd[summary_results_pd["run_name"] == run_name].index[0]
@@ -239,11 +241,11 @@ def create_global_summary(inp_dir):
         if summary_results_pd.loc[index, "status"] in ["timeout", "oom", "fail", "pending", "running"]:
             continue
         
-        # Tokens per sec per gpu (exclude the first 3 iterations as they are profiler warmup)
-        summary_results_pd.loc[index, "tok/s/gpu"] = log_metrics_dfs[run_name]["tokens_per_sec_per_gpu"][3:].astype(float).mean() 
+        # Tokens per sec per gpu (exclude the first 6 iterations as they are part of profiling)
+        summary_results_pd.loc[index, "tok/s/gpu"] = log_metrics_dfs[run_name]["tokens_per_sec_per_gpu"][skip_profiling_steps:].astype(float).mean() 
         
         # MFU (bf16) (exclude the first 3 iterations as they are profiler warmup)
-        summary_results_pd.loc[index, "mfu"] = (log_metrics_dfs[run_name]["model_tflops_per_gpu"][3:].astype(int).mean() / get_promised_flop_per_sec(device="cuda", dtype=torch.bfloat16)) * 100
+        summary_results_pd.loc[index, "mfu"] = (log_metrics_dfs[run_name]["model_tflops_per_gpu"][skip_profiling_steps:].astype(int).mean() / get_promised_flop_per_sec(device="cuda", dtype=torch.bfloat16)) * 100
          
         # Forward
         summary_results_pd.loc[index, "forward"] = profiler_dfs[run_name]["forward"].values[0]
