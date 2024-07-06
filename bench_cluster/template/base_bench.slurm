@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --job-name=bench_cluster
-#SBATCH --time=02:00:00
+#SBATCH --time=03:00:00
 #SBATCH --partition=hopper-prod
 #SBATCH --nodes={{ nodes }}
 #SBATCH --gres=gpu:{{ n_proc_per_node }}
@@ -99,9 +99,13 @@ if [ $exit_status -eq 0 ]; then
     python /fsx/ferdinandmom/ferdinand-hf/bench_cluster/main.py report --inp_dir {{ root_path }} --is_profiler
 fi
 
+{# Set the path and branch variables #}
+{% set path = target_path_hf_hub %}
+{% set parts = path.split('/') %}
+{% set branch = parts[0] + '-' + parts[1] %}
 
 # Push to hub the folder using huggingface_cli
-huggingface-cli upload nanotron/bench_cluster {{ root_path }} {{ target_path_hf_hub }} --commit-message "Upload {{ target_path_hf_hub }}"
+huggingface-cli upload nanotron/bench_cluster {{ root_path }} {{ target_path_hf_hub }} --revision {{ branch }} --commit-message "Upload {{ target_path_hf_hub }}"
 
 # Verify the upload
 if [ $? -eq 0 ]; then
