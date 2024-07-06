@@ -146,7 +146,7 @@ class Scheduler:
         print(f"{'-'*10}-|-{'-'*6}")
         print(f"{'Total':<10} | {total:<6}")
 
-def submit_jobs(inp_dir, qos, hf_token, nb_slurm_array, only_fails=False):
+def submit_jobs(inp_dir, qos, hf_token, nb_slurm_array, only: str = None):
     scheduler = Scheduler(inp_dir, qos)
 
     #TODO: batch into job arrays
@@ -154,13 +154,19 @@ def submit_jobs(inp_dir, qos, hf_token, nb_slurm_array, only_fails=False):
     env_vars["HUGGINGFACE_TOKEN"] = hf_token
     total_jobs = len(scheduler.job_lists)
 
-    if only_fails:
+    if only == "fail":
         scheduler.job_lists = scheduler.keep_only_jobs(Status.FAIL)
-        failed_jobs = len(scheduler.job_lists)
-        if failed_jobs == 0:
-            print("No failed jobs to resubmit")
+    elif only == "pending":
+        scheduler.job_lists = scheduler.keep_only_jobs(Status.PENDING)
+    elif only == "timeout":
+        scheduler.job_lists = scheduler.keep_only_jobs(Status.TIMEOUT)
+    
+    if only is not None:
+        filtered_jobs = len(scheduler.job_lists)
+        if filtered_jobs == 0:
+            print(f"No '{only}' jobs to resubmit")
             return
-        print(f"Only {failed_jobs}/{total_jobs} jobs will be resubmitted")
+        print(f"Only {filtered_jobs}/{total_jobs} jobs with status '{only}' will be resubmitted")
     
     scheduler.job_lists = scheduler.filter_out_jobs(Status.COMPLETED)
 
