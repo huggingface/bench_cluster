@@ -140,7 +140,7 @@ def create_configs(out_dir: str, model: str, gpus: int):
             # Add all permutations of the combination
             for perm in itertools.permutations(combination):
                 dp_perm, tp_perm, pp_perm = perm
-                if tp_perm <= 8 and is_enough_layers_for_pp(pp, config_content):
+                if tp_perm <= 8 and is_enough_layers_for_pp(pp_perm, config_content):
                     combinations_3D_parallelism.add(perm)
 
     # Create directories and write config files
