@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --job-name=bench_cluster
-#SBATCH --time=03:00:00
+#SBATCH --time=04:00:00
 #SBATCH --partition=hopper-prod
 #SBATCH --nodes={{ nodes }}
 #SBATCH --gres=gpu:{{ n_proc_per_node }}
@@ -86,7 +86,7 @@ else
         printf "oom" > {{ root_path }}/status.txt
     elif grep -q " CUDA error: an illegal memory access" {{ root_path }}/log.out; then
         printf "oom" > {{ root_path }}/status.txt
-    elif grep -q "Timeout at NCCL" {{ root_path }}/log.out; then
+    elif grep -q "Timeout" {{ root_path }}/log.out; then
         printf "timeout" > {{ root_path }}/status.txt
     else
         printf "fail" > {{ root_path }}/status.txt
