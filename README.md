@@ -52,6 +52,10 @@ python main.py submit_jobs --inp_dir results/ --qos high --hf_token <YOUR_HF_TOK
 
 # Check status of runs (INIT/PENDING/RUNNING/FAIL/OOM/COMPLETED)
 ./check_status.sh results/
+
+# Will cancel jobs that were not properly cancel by slurm (to avoid wasting ressources)
+sbatch healthcheck_jobs.slurm
+
 # Automatically rerun the jobs with status FAIL
 python main.py submit_jobs --inp_dir results/  --qos high --hf_token <YOUR_HF_TOKEN> --only_fails
 
