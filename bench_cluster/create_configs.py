@@ -130,7 +130,6 @@ def create_configs(out_dir: str, model: str, gpus: int, dp_max: int, tp_max: int
     config_content = deepcopy(base_config)
     update_config_based_on_model(model, config_content)
     
-    df = pd.DataFrame(columns=["model", "run_name", "status", "nnodes", "dp", "tp", "pp", "batch_accumulation_per_replica", "micro_batch_size", "tok/s/gpu", "mfu", "forward", "backward"])    
     # Generate all possible combinations of three numbers from 1 to gpus
     combinations_3D_parallelism = set()
     dp_range = range(1, gpus + 1) if dp_max is None else range(1, min(dp_max, gpus) + 1)
@@ -180,7 +179,7 @@ def create_configs(out_dir: str, model: str, gpus: int, dp_max: int, tp_max: int
             config_content['tokens']['micro_batch_size'] = micro_batch_size
             
             # Create a directory for each combination of parallelism
-            run_path = os.path.join(path, f"dp-{dp}_tp-{tp}_pp-{pp}_mbz-{micro_batch_size}")
+            run_path = os.path.join(path, f"dp-{dp}_tp-{tp}_pp-{pp}_mbz-{micro_batch_size}_bapr-{batch_accumulation_per_replica}")
             
             # Get absoulte path for run_path
             if no_profiler:
@@ -192,26 +191,6 @@ def create_configs(out_dir: str, model: str, gpus: int, dp_max: int, tp_max: int
                 os.makedirs(run_path)
                 with open(os.path.join(run_path, "config.yaml"), "w") as new_config:
                     yaml.dump(config_content, new_config, default_flow_style=False, sort_keys=False)
-                
-            world_size = dp * tp * pp
-            # Create an entry in dataframe
-            df.loc[len(df)] = {
-                "model": model,
-                "run_name": f"dp-{dp}_tp-{tp}_pp-{pp}_mbz-{micro_batch_size}",
-                "status": str(""),
-                "nnodes": max(1, world_size // 8),
-                "dp": dp,
-                "tp": tp,
-                "pp": pp,
-                "batch_accumulation_per_replica": batch_accumulation_per_replica,
-                "micro_batch_size": micro_batch_size,
-                "tok/s/gpu": -1,
-                "mfu": -1,
-                "memory": -1,
-                "forward": str(""),
-                "backward": str(""),
-            }
 
     # check if file exists
-    df.to_csv(os.path.join(path, f"{gpus}_GPUS_summary_results.csv"), index=False)
     del config_content
