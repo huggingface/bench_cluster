@@ -124,7 +124,7 @@ def is_enough_layers_for_pp(pp_size, config):
 
     return unique_ranks == expected_ranks
 
-def create_configs(out_dir: str, model: str, gpus: int):
+def create_configs(out_dir: str, model: str, gpus: int, no_profiler: bool = False, exp_name: str = None):
     print(f"Creating configs for {model} given {gpus} GPUs")
     
     config_content = deepcopy(base_config)
@@ -141,7 +141,11 @@ def create_configs(out_dir: str, model: str, gpus: int):
                 combinations_3D_parallelism.add((dp, tp, pp))
 
     # Create directories and write config files
-    path = os.path.join(out_dir, model + f"/{gpus}_GPUS")
+    if exp_name is not None:
+        path = os.path.join(out_dir, model + f"/{exp_name}")
+    else:
+        path = os.path.join(out_dir, model + f"/{gpus}_GPUS")
+    
     if not os.path.exists(path):
         os.makedirs(path)
     
@@ -175,7 +179,10 @@ def create_configs(out_dir: str, model: str, gpus: int):
             run_path = os.path.join(path, f"dp-{dp}_tp-{tp}_pp-{pp}_mbz-{micro_batch_size}")
             
             # Get absoulte path for run_path
-            config_content['profiler']['profiler_export_path'] = os.path.abspath(run_path)
+            if no_profiler:
+                config_content['profiler'] = None
+            else:
+                config_content['profiler']['profiler_export_path'] = os.path.abspath(run_path)
              
             if not os.path.exists(run_path):
                 os.makedirs(run_path)
