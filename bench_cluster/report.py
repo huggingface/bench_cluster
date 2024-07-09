@@ -201,20 +201,45 @@ def get_promised_flop_per_sec(device: str, dtype: torch.dtype) -> float:
     raise ValueError(f"Unknown device: {device}")
 
 def create_global_summary(inp_dir):
+    
+    folders_path = glob.glob(os.path.join(inp_dir, '*/'))
     file_paths = glob.glob(os.path.join(inp_dir, "**", "*.csv"), recursive=True)
     if not file_paths:
         raise ValueError(f"No .csv file found in {inp_dir}")
 
-    summary_results_csv = [file for file in file_paths if "summary_results" in file]
-    assert len(summary_results_csv) == 1, "There should be exactly one summary_results csv file"
     log_metrics_csv = [file for file in file_paths if "log_metrics" in file]
     profiler_csv = [file for file in file_paths if "profiler" in file]
     
-    summary_results_pd = pd.read_csv(summary_results_csv[0])
+    summary_results_pd = pd.DataFrame(columns=["model", "run_name", "status", "nnodes", "dp", "tp", "pp", "batch_accumulation_per_replica", "micro_batch_size", "tok/s/gpu", "mfu", "forward", "backward"])    
     summary_results_pd["status"] = summary_results_pd["status"].astype(str)
     summary_results_pd["forward"] = summary_results_pd["forward"].astype(str)
     summary_results_pd["backward"] = summary_results_pd["backward"].astype(str)
-    
+        
+    # Create run_name column in the summary_results_pd with folder_paths
+    for folder in folders_path:
+        _, model, _, run_name, _ = folder.split("/")
+        
+        dp, tp, pp, micro_batch_size, batch_accumulation_per_replica = re.findall(r'\d+', run_name)
+        dp, tp, pp = int(dp), int(tp), int(pp)
+        world_size = dp * tp * pp
+        
+        summary_results_pd.loc[len(summary_results_pd)] = {
+            "model": model,
+            "run_name": f"dp-{dp}_tp-{tp}_pp-{pp}_mbz-{micro_batch_size}_bapr-{batch_accumulation_per_replica}",
+            "status": str(""),
+            "nnodes": max(1, world_size // 8),
+            "dp": dp,
+            "tp": tp,
+            "pp": pp,
+            "batch_accumulation_per_replica": batch_accumulation_per_replica,
+            "micro_batch_size": micro_batch_size,
+            "tok/s/gpu": -1,
+            "mfu": -1,
+            "memory": -1,
+            "forward": str(""),
+            "backward": str(""),
+        }
+
     log_metrics_dfs = {}
     for file in log_metrics_csv:
         run_name = file.split("/")[-2]
@@ -228,6 +253,7 @@ def create_global_summary(inp_dir):
     skip_profiling_steps = 7
     
     for run_name in summary_results_pd["run_name"]:
+        
         # Get the associated row in the summary_results csv
         index = summary_results_pd[summary_results_pd["run_name"] == run_name].index[0]
        
@@ -241,6 +267,10 @@ def create_global_summary(inp_dir):
         if summary_results_pd.loc[index, "status"] in ["timeout", "oom", "fail", "pending", "running"]:
             continue
         
+        if run_name not in log_metrics_dfs:
+            print(f"Skipping {run_name} as it does not have log_metrics.csv")
+            continue
+        
         # Tokens per sec per gpu (exclude the first 6 iterations as they are part of profiling)
         summary_results_pd.loc[index, "tok/s/gpu"] = log_metrics_dfs[run_name]["tokens_per_sec_per_gpu"][skip_profiling_steps:].astype(float).mean() 
         
@@ -248,12 +278,17 @@ def create_global_summary(inp_dir):
         summary_results_pd.loc[index, "mfu"] = (log_metrics_dfs[run_name]["model_tflops_per_gpu"][skip_profiling_steps:].astype(int).mean() / get_promised_flop_per_sec(device="cuda", dtype=torch.bfloat16)) * 100
          
         # Forward
+        if run_name not in profiler_dfs:
+            print(f"Skipping profiler part for {run_name} as it does not have profiler.csv")
+            continue
         summary_results_pd.loc[index, "forward"] = profiler_dfs[run_name]["forward"].values[0]
         # Backward
         summary_results_pd.loc[index, "backward"] = profiler_dfs[run_name]["backward"].values[0]
-    
-    summary_results_pd.to_csv(summary_results_csv[0], index=False)
-    print(f"Create {summary_results_csv[0]} with new metrics")
+
+    num_gpus = folders_path[0].split("/")[-3]
+    path = os.path.join(inp_dir, num_gpus + "_global_summary.csv")
+    summary_results_pd.to_csv(path, index=False)
+    print(f"Create {path} with new metrics")
     
 def report(inp_dir, is_profiler=False, is_network=False, is_logs=False, global_summary=False):
     

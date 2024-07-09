@@ -47,6 +47,12 @@ python main.py create_configs --out_dir "results" --model llama-1B --gpus 8
 # Create configs without profiler on Swiss cluster
 python main.py create_configs --out_dir "results" --model llama-1B --gpus 4 --exp_name 4_GPUS_no_profiler --no_profiler  --cluster swiss-ai
 
+# Create above workflow with all possible combinations and name it 8_GPUS_FOLDER + disable profiler
+python main.py create_configs --out_dir "results" --model llama-1B --gpus 8 --exp_name 8_GPUS_FOLDER --no_profiler
+
+# Create above workflow with only combinations of DP 
+python main.py create_configs --out_dir "results" --model llama-1B --gpus 8 --tp_max=1  --pp_max=1
+
 # Launch all the jobs in `results/` folder 
 python main.py submit_jobs --inp_dir results/  --qos high --hf_token <YOUR_HF_TOKEN> 
 
