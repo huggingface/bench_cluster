@@ -278,6 +278,9 @@ def create_global_summary(inp_dir):
         summary_results_pd.loc[index, "mfu"] = (log_metrics_dfs[run_name]["model_tflops_per_gpu"][skip_profiling_steps:].astype(int).mean() / get_promised_flop_per_sec(device="cuda", dtype=torch.bfloat16)) * 100
          
         # Forward
+        if run_name not in profiler_dfs:
+            print(f"Skipping profiler part for {run_name} as it does not have profiler.csv")
+            continue
         summary_results_pd.loc[index, "forward"] = profiler_dfs[run_name]["forward"].values[0]
         # Backward
         summary_results_pd.loc[index, "backward"] = profiler_dfs[run_name]["backward"].values[0]
