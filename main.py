@@ -14,10 +14,11 @@ if __name__ == '__main__':
     create_configs_parser = subparsers.add_parser("create_configs")
     create_configs_parser.add_argument("--out_dir", type=str, required=True)
     create_configs_parser.add_argument("--model", type=str, required=True)
-    create_configs_parser.add_argument("--gpus", type=int, required=True, choices=[8, 16, 32, 64, 128, 256, 512])
+    create_configs_parser.add_argument("--gpus", type=int, required=True, choices=[4, 8, 16, 32, 64, 128, 256, 512])
     create_configs_parser.add_argument("--exp_name", type=str, default=None)
     create_configs_parser.add_argument("--no_profiler", action="store_true")
-    
+    create_configs_parser.add_argument("--cluster", type=str, default="hf", choices=["hf", "swiss-ai"])
+
     # Submit jobs
     submit_jobs_parser = subparsers.add_parser("submit_jobs")
     submit_jobs_parser.add_argument("--inp_dir", type=str, required=True)
@@ -25,6 +26,7 @@ if __name__ == '__main__':
     submit_jobs_parser.add_argument("--only", type=str, default=None, choices=["fail", "pending", "timeout"])
     submit_jobs_parser.add_argument("--hf_token", type=str, required=True)
     submit_jobs_parser.add_argument("--nb_slurm_array", type=int, default=0)
+    submit_jobs_parser.add_argument("--cluster", type=str, default="hf", choices=["hf", "swiss-ai"])
     
     #  Network bench
     network_bench_parser = subparsers.add_parser("network_bench")
@@ -56,9 +58,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     if args.action == "create_configs":
-        create_configs(args.out_dir, args.model, args.gpus, args.no_profiler, args.exp_name)
+        create_configs(args.out_dir, args.model, args.gpus, args.no_profiler, args.exp_name, args.cluster)
     elif args.action == "submit_jobs":
-        submit_jobs(args.inp_dir, args.qos, args.hf_token, args.nb_slurm_array, only=args.only)
+        submit_jobs(args.inp_dir, args.qos, args.hf_token, args.nb_slurm_array, cluster=args.cluster, only=args.only)
     elif args.action == "network_bench":
         #TODO: take into account boolean into scripts
         network_bench(args.out_dir, args.gpus, args.qos, args.trials, args.warmups, args.maxsize, args.async_op, args.bw_unit, args.scan, args.raw, args.dtype, args.mem_factor, args.debug)

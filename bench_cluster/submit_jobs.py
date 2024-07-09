@@ -65,7 +65,7 @@ class Scheduler:
     def filter_out_jobs(self, status: Status):
         return [job for job in self.job_lists if job.status != status]
      
-    def create_slurm_script(self, job: Job):
+    def create_slurm_script(self, job: Job, cluster: str):
         # Submit job to the cluster (edit jinja)    
         # load yaml config.yaml
         with open(job.config, 'r') as file:
@@ -89,7 +89,17 @@ class Scheduler:
             "qos": job.qos,
         }
         
-        with open("/fsx/ferdinandmom/ferdinand-hf/bench_cluster/bench_cluster/template/base_bench.slurm", 'r') as file:
+        
+        #TODO: don't hardcode the base_bench.slurm path. Should be #HOME/bench_cluster/template/base_bench.slurm
+        if cluster == "swiss-ai":
+            base_path = "/users/fmom/project/bench_cluster/bench_cluster/template/base_bench_swiss.slurm"
+        elif cluster == "hf":
+            # HF cluster
+            base_path = "/fsx/ferdinandmom/ferdinand-hf/bench_cluster/bench_cluster/template/base_bench.slurm"
+        else:
+            raise ValueError("Invalid cluster")
+        
+        with open(base_path, 'r') as file:
             base_bench_file = file.read()
         
         base_bench_template = Template(base_bench_file)
@@ -146,7 +156,7 @@ class Scheduler:
         print(f"{'-'*10}-|-{'-'*6}")
         print(f"{'Total':<10} | {total:<6}")
 
-def submit_jobs(inp_dir, qos, hf_token, nb_slurm_array, only: str = None):
+def submit_jobs(inp_dir, qos, hf_token, nb_slurm_array, cluster: str, only: str = None):
     scheduler = Scheduler(inp_dir, qos)
 
     #TODO: batch into job arrays
@@ -190,7 +200,7 @@ def submit_jobs(inp_dir, qos, hf_token, nb_slurm_array, only: str = None):
             print(f"Launching job Dependency array {i+1} with {nb_jobs} jobs")
             
             for job in job_array:
-                scheduler.create_slurm_script(job)
+                scheduler.create_slurm_script(job, cluster)
 
             scheduler.launch_dependency(job_array, env_vars)
             
@@ -198,6 +208,6 @@ def submit_jobs(inp_dir, qos, hf_token, nb_slurm_array, only: str = None):
     else:
         # Don't use job dependecies
         for job in scheduler.job_lists:
-            scheduler.create_slurm_script(job)
+            scheduler.create_slurm_script(job, cluster)
             subprocess.run(["sbatch", os.path.join(job.root_path, "bench.slurm")], env=env_vars)
             job.set_status(Status.PENDING)

@@ -42,7 +42,10 @@ results/
 
 ```shell
 # Create above workflow with all possible combinations of hyper-parameters 
-python main.py create_configs --out_dir "results" --model llama-1B --gpus 8      
+python main.py create_configs --out_dir "results" --model llama-1B --gpus 8
+
+# Create configs without profiler on Swiss cluster
+python main.py create_configs --out_dir "results" --model llama-1B --gpus 4 --exp_name 4_GPUS_no_profiler --no_profiler  --cluster swiss-ai
 
 # Launch all the jobs in `results/` folder 
 python main.py submit_jobs --inp_dir results/  --qos high --hf_token <YOUR_HF_TOKEN> 

@@ -124,7 +124,7 @@ def is_enough_layers_for_pp(pp_size, config):
 
     return unique_ranks == expected_ranks
 
-def create_configs(out_dir: str, model: str, gpus: int, no_profiler: bool = False, exp_name: str = None):
+def create_configs(out_dir: str, model: str, gpus: int, no_profiler: bool = False, exp_name: str = None, cluster: str = "hf"):
     print(f"Creating configs for {model} given {gpus} GPUs")
     
     config_content = deepcopy(base_config)
@@ -132,10 +132,15 @@ def create_configs(out_dir: str, model: str, gpus: int, no_profiler: bool = Fals
     
     df = pd.DataFrame(columns=["model", "run_name", "status", "nnodes", "dp", "tp", "pp", "batch_accumulation_per_replica", "micro_batch_size", "tok/s/gpu", "mfu", "forward", "backward"])    
     
+    if cluster == "hf":
+        tp_max = 8
+    elif cluster == "swiss-ai":
+        tp_max = 4 # GH200
+
     # Generate all possible combinations of three numbers from 1 to gpus
     combinations_3D_parallelism = set()
     for dp in range(1, gpus + 1):
-        for tp in range(1, 9):  # tp <= 8
+        for tp in range(1, tp_max + 1):  # tp <= 8 or <= 4 depending on the cluster
             pp = gpus // (dp * tp)
             if dp * tp * pp == gpus and is_enough_layers_for_pp(pp, config_content):
                 combinations_3D_parallelism.add((dp, tp, pp))
