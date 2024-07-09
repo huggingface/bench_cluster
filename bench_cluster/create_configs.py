@@ -133,15 +133,12 @@ def create_configs(out_dir: str, model: str, gpus: int):
     df = pd.DataFrame(columns=["model", "run_name", "status", "nnodes", "dp", "tp", "pp", "batch_accumulation_per_replica", "micro_batch_size", "tok/s/gpu", "mfu", "forward", "backward"])    
     
     # Generate all possible combinations of three numbers from 1 to gpus
-    combinations_3D_parallelism = set()    
-    for combination in itertools.product(range(1, gpus+1), repeat=3):
-        dp, tp, pp = combination
-        if dp * tp * pp == gpus and tp <= 8:
-            # Add all permutations of the combination
-            for perm in itertools.permutations(combination):
-                dp_perm, tp_perm, pp_perm = perm
-                if tp_perm <= 8 and is_enough_layers_for_pp(pp_perm, config_content):
-                    combinations_3D_parallelism.add(perm)
+    combinations_3D_parallelism = set()
+    for dp in range(1, gpus + 1):
+        for tp in range(1, 9):  # tp <= 8
+            pp = gpus // (dp * tp)
+            if dp * tp * pp == gpus and is_enough_layers_for_pp(pp, config_content):
+                combinations_3D_parallelism.add((dp, tp, pp))
 
     # Create directories and write config files
     path = os.path.join(out_dir, model + f"/{gpus}_GPUS")
