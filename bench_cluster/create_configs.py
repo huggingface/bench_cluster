@@ -124,21 +124,25 @@ def is_enough_layers_for_pp(pp_size, config):
 
     return unique_ranks == expected_ranks
 
-def create_configs(out_dir: str, model: str, gpus: int, no_profiler: bool = False, exp_name: str = None):
+def create_configs(out_dir: str, model: str, gpus: int, dp_max: int, tp_max: int, pp_max: int, no_profiler: bool = False, exp_name: str = None):
     print(f"Creating configs for {model} given {gpus} GPUs")
     
     config_content = deepcopy(base_config)
     update_config_based_on_model(model, config_content)
     
     df = pd.DataFrame(columns=["model", "run_name", "status", "nnodes", "dp", "tp", "pp", "batch_accumulation_per_replica", "micro_batch_size", "tok/s/gpu", "mfu", "forward", "backward"])    
-    
     # Generate all possible combinations of three numbers from 1 to gpus
     combinations_3D_parallelism = set()
-    for dp in range(1, gpus + 1):
-        for tp in range(1, 9):  # tp <= 8
-            pp = gpus // (dp * tp)
-            if dp * tp * pp == gpus and is_enough_layers_for_pp(pp, config_content):
-                combinations_3D_parallelism.add((dp, tp, pp))
+    dp_range = range(1, gpus + 1) if dp_max is None else range(1, min(dp_max, gpus) + 1)
+    tp_range = range(1, 9) if tp_max is None else range(1, min(tp_max, 8) + 1)  # tp <= 8
+    pp_range = range(1, gpus + 1) if pp_max is None else range(1, min(pp_max, gpus) + 1)
+
+    # Generate combinations
+    for dp in dp_range:
+        for tp in tp_range:
+            for pp in pp_range:
+                if dp * tp * pp == gpus and is_enough_layers_for_pp(pp, config_content):
+                    combinations_3D_parallelism.add((dp, tp, pp))
 
     # Create directories and write config files
     if exp_name is not None:

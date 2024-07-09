@@ -17,6 +17,9 @@ if __name__ == '__main__':
     create_configs_parser.add_argument("--gpus", type=int, required=True, choices=[8, 16, 32, 64, 128, 256, 512])
     create_configs_parser.add_argument("--exp_name", type=str, default=None)
     create_configs_parser.add_argument("--no_profiler", action="store_true")
+    create_configs_parser.add_argument("--dp_max", type=int, default=None)
+    create_configs_parser.add_argument("--tp_max", type=int, default=None)
+    create_configs_parser.add_argument("--pp_max", type=int, default=None)
     
     # Submit jobs
     submit_jobs_parser = subparsers.add_parser("submit_jobs")
@@ -56,7 +59,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     if args.action == "create_configs":
-        create_configs(args.out_dir, args.model, args.gpus, args.no_profiler, args.exp_name)
+        create_configs(args.out_dir, args.model, args.gpus, args.dp_max, args.tp_max, args.pp_max, args.no_profiler, args.exp_name)
     elif args.action == "submit_jobs":
         submit_jobs(args.inp_dir, args.qos, args.hf_token, args.nb_slurm_array, only=args.only)
     elif args.action == "network_bench":
