@@ -217,7 +217,9 @@ def create_global_summary(inp_dir):
         
     # Create run_name column in the summary_results_pd with folder_paths
     for folder in folders_path:
-        _, model, _, run_name, _ = folder.split("/")
+        components = os.path.normpath(folder).split("/")
+        model = next((c for c in components if 'llama' in c.lower()), None)
+        run_name = next((c for c in components if c.startswith('dp')), None)
         
         dp, tp, pp, micro_batch_size, batch_accumulation_per_replica = re.findall(r'\d+', run_name)
         dp, tp, pp = int(dp), int(tp), int(pp)
