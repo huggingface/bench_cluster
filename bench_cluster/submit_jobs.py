@@ -71,10 +71,17 @@ class Scheduler:
         with open(job.config, 'r') as file:
             config = yaml.load(file, Loader=yaml.FullLoader)
         
+        if cluster == "hf":
+            max_nodes = 8
+        elif cluster == "swiss-ai":
+            max_nodes = 4
+        else:
+            raise ValueError("Invalid cluster")
+        
         # Pick the right number of nodes and n_proc_per_node
         world_size = config['parallelism']['pp'] * config['parallelism']['dp'] * config['parallelism']['tp']
-        assert world_size <= 8 or world_size % 8 == 0
-        nodes = max(1, world_size // 8)
+        assert world_size <= max_nodes or world_size % max_nodes == 0
+        nodes = max(1, world_size // max_nodes)
         n_proc_per_node = min(8, world_size // nodes)
         assert nodes * n_proc_per_node == world_size
         

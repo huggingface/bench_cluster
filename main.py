@@ -54,7 +54,8 @@ if __name__ == '__main__':
     report_parser.add_argument("--is_network", action="store_true", default=False)  
     report_parser.add_argument("--is_logs", action="store_true", default=False)
     report_parser.add_argument("--global_summary", action="store_true", default=False)
-    
+    report_parser.add_argument("--cluster", type=str, default="hf", choices=["hf", "swiss-ai"])
+
     # Plots
     plots_parser = subparsers.add_parser("plots")
     
@@ -68,7 +69,7 @@ if __name__ == '__main__':
         #TODO: take into account boolean into scripts
         network_bench(args.out_dir, args.gpus, args.qos, args.trials, args.warmups, args.maxsize, args.async_op, args.bw_unit, args.scan, args.raw, args.dtype, args.mem_factor, args.debug)
     elif args.action == "report":
-        report(args.inp_dir, args.is_profiler, args.is_network, args.is_logs, args.global_summary)
+        report(args.inp_dir, args.cluster, args.is_profiler, args.is_network, args.is_logs, args.global_summary)
     elif args.action == "plots":
         pass
     else:
