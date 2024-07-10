@@ -160,6 +160,8 @@ def submit_jobs(inp_dir, qos, hf_token, nb_slurm_array, only: str = None):
         scheduler.job_lists = scheduler.keep_only_jobs(Status.PENDING)
     elif only == "timeout":
         scheduler.job_lists = scheduler.keep_only_jobs(Status.TIMEOUT)
+    elif only == "running":
+        scheduler.job_lists = scheduler.keep_only_jobs(Status.RUNNING)
     
     if only is not None:
         filtered_jobs = len(scheduler.job_lists)

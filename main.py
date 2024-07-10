@@ -25,7 +25,7 @@ if __name__ == '__main__':
     submit_jobs_parser = subparsers.add_parser("submit_jobs")
     submit_jobs_parser.add_argument("--inp_dir", type=str, required=True)
     submit_jobs_parser.add_argument("--qos", type=str, required=True, choices=["low", "normal", "high", "prod"]) 
-    submit_jobs_parser.add_argument("--only", type=str, default=None, choices=["fail", "pending", "timeout"])
+    submit_jobs_parser.add_argument("--only", type=str, default=None, choices=["fail", "pending", "timeout", "running"])
     submit_jobs_parser.add_argument("--hf_token", type=str, required=True)
     submit_jobs_parser.add_argument("--nb_slurm_array", type=int, default=0)
     
