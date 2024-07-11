@@ -9,17 +9,26 @@ from transformers import AutoTokenizer
 import math
 import pandas as pd
 
-def find_combinations_power_of_2(x):
-    assert (x != 0) and (x & (x - 1) == 0)
-    
+def find_combinations_power_of_2_below_max_global_batch_size(dp, sequence_length, max_global_batch_size, bapr_max):
     combinations = []
-    # Iterate through powers of 2 up to x
-    for exponent in range(int(math.log2(x)) + 1):
-        micro_batch_size = 2 ** exponent
-        if x % micro_batch_size == 0:
-            batch_accumulation_per_replica = x // micro_batch_size
-            combinations.append((batch_accumulation_per_replica, micro_batch_size))
+    max_power = (int(max_global_batch_size).bit_length() - 1)
     
+    if bapr_max is not None:
+        # Case: iterate through all powers of 2 for both BAPR and MBS
+        bapr_range = [bapr_max] 
+    else:
+        # Case: bapr_max is set to a specific value, use only this BAPR value
+        bapr_range = [1 << i for i in range(max_power + 1)]
+    
+    for bapr in bapr_range:
+        for mbs in [1 << i for i in range(max_power + 1)]:
+            global_batch_size = dp * sequence_length * bapr * mbs
+            
+            if global_batch_size > max_global_batch_size:
+                break
+            
+            combinations.append((bapr, mbs))
+
     return combinations
 
 def update_config_based_on_model(model: str, config: dict):
@@ -124,7 +133,7 @@ def is_enough_layers_for_pp(pp_size, config):
 
     return unique_ranks == expected_ranks
 
-def create_configs(out_dir: str, model: str, gpus: int, dp_max: int, tp_max: int, pp_max: int, no_profiler: bool = False, cluster: str = "hf", exp_name: str = None, seq_len: int = 4096):
+def create_configs(out_dir: str, model: str, gpus: int, dp_max: int, tp_max: int, pp_max: int, bapr_max: int, gbs_max: int, no_profiler: bool = False, cluster: str = "hf", exp_name: str = None, seq_len: int = 4096):
     print(f"Creating configs for {model} given {gpus} GPUs")
     
     config_content = deepcopy(base_config)
@@ -158,7 +167,7 @@ def create_configs(out_dir: str, model: str, gpus: int, dp_max: int, tp_max: int
     if not os.path.exists(path):
         os.makedirs(path)
     
-    min_global_batch_size, max_global_batch_size = 4*1e6, 8*1e6
+    min_global_batch_size, max_global_batch_size = 4*1e6, gbs_max
 
     # Initialize tqdm progress bar for the combinations loop
     for (dp, tp, pp) in combinations_3D_parallelism:
@@ -167,14 +176,11 @@ def create_configs(out_dir: str, model: str, gpus: int, dp_max: int, tp_max: int
         config_content['parallelism']['tp'] = tp
         config_content['parallelism']['pp'] = pp
         
-        remaining_global_batch_size = int(max_global_batch_size // (dp * config_content["tokens"]["sequence_length"]))        
-        # Find the largest power of 2 that is less than or equal to remaining_global_batch_size
-        remaining_global_batch_size = 2 ** (remaining_global_batch_size.bit_length() - 1)
-        for (batch_accumulation_per_replica, micro_batch_size) in find_combinations_power_of_2(remaining_global_batch_size):
+        bapr_mbs_combo = find_combinations_power_of_2_below_max_global_batch_size(dp, config_content["tokens"]["sequence_length"], max_global_batch_size, bapr_max)
+        
+        for (batch_accumulation_per_replica, micro_batch_size) in bapr_mbs_combo:
             
-            if batch_accumulation_per_replica * micro_batch_size * dp * config_content["tokens"]["sequence_length"] < min_global_batch_size:
-                continue
-            elif batch_accumulation_per_replica < pp - 1:
+            if batch_accumulation_per_replica < pp - 1:
                 # self.n_micro_batches_per_batch = self.config.tokens.batch_accumulation_per_replica
                 # self.pipeline_engine.nb_microbatches = self.n_micro_batches_per_batch
                 #NOTE: assert self.nb_microbatches >= pg.size() - 1

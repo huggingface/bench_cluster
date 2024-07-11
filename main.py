@@ -21,6 +21,8 @@ if __name__ == '__main__':
     create_configs_parser.add_argument("--dp_max", type=int, default=None)
     create_configs_parser.add_argument("--tp_max", type=int, default=None)
     create_configs_parser.add_argument("--pp_max", type=int, default=None)
+    create_configs_parser.add_argument("--bapr_max", type=int, default=None, help="Set maximum batch_accumulation_per_replica.")
+    create_configs_parser.add_argument("--gbs_max", type=int, default=8*1e6)
     create_configs_parser.add_argument("--seq_len", type=int, default=4096, choices=[2048, 4096])
     
     # Submit jobs
@@ -63,7 +65,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     if args.action == "create_configs":
-        create_configs(args.out_dir, args.model, args.gpus, args.dp_max, args.tp_max, args.pp_max, args.no_profiler, args.cluster, args.exp_name, args.seq_len)
+        create_configs(args.out_dir, args.model, args.gpus, args.dp_max, args.tp_max, args.pp_max, args.bapr_max, args.gbs_max, args.no_profiler, args.cluster, args.exp_name, args.seq_len)
     elif args.action == "submit_jobs":
         submit_jobs(args.inp_dir, args.qos, args.hf_token, args.nb_slurm_array, cluster=args.cluster, only=args.only)
     elif args.action == "network_bench":
