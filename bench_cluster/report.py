@@ -242,31 +242,34 @@ def parse_network(inp_dir):
         print(f"Data from {file_path} has been written to {output_file}")
 
 # https://github.com/stanford-cs336/spring2024-lectures/blob/main/lecture_02.py#L919
-def get_promised_flop_per_sec(device: str, dtype: torch.dtype) -> float:
-    """Return the peak FLOP/s for `device` operating on `dtype`."""
-    properties = torch.cuda.get_device_properties(device)
+def get_promised_flop_per_sec(dtype: torch.dtype) -> float:
+    """Return the peak FLOP/s for the GPU operating on `dtype`."""
+    
+    # Run nvidia-smi command and capture output
+    try:
+        result = subprocess.run(['nvidia-smi', '--query-gpu=name', '--format=csv,noheader'], 
+                                capture_output=True, text=True, check=True)
+        gpu_name = result.stdout.strip()
+    except subprocess.CalledProcessError:
+        raise RuntimeError("Failed to run nvidia-smi. Make sure it's installed and accessible.")
+    except FileNotFoundError:
+        raise RuntimeError("nvidia-smi command not found. Make sure NVIDIA drivers are installed.")
 
-    print(properties.name)
-
-    if "A100" in properties.name:
-        # they are exponent 12
-        # https://www.nvidia.com/content/dam/en-zz/Solutions/Data-Center/a100/pdf/nvidia-a100-datasheet-us-nvidia-1758950-r4-web.pdf")
+    # Extract GPU model (they are exponent 12)
+    if "A100" in gpu_name:
         if dtype == torch.float32:
-            return 19.5
+            return 19.5  # 19.5 TFLOP/s
         if dtype in (torch.bfloat16, torch.float16):
-            return 312
-        raise ValueError(f"Unknown dtype: {dtype}")
-
-    elif "H100" in properties.name:
-        # https://resources.nvidia.com/en-us-tensor-core/nvidia-tensor-core-gpu-datasheet")
-        # they are exponent 12
+            return 312   # 312 TFLOP/s
+    elif "H100" in gpu_name or "GH200" in gpu_name:
         if dtype == torch.float32:
-            return 67.5
+            return 67.5  # 67.5 TFLOP/s
         if dtype in (torch.bfloat16, torch.float16):
-            return 1979 / 2  # 1979 is for sparse, dense is half of that
-        raise ValueError(f"Unknown dtype: {dtype}")
+            return (1979 / 2)  # 989.5 TFLOP/s (half of 1979 for dense operations)
+    else:
+        raise ValueError(f"Unsupported GPU model: {gpu_name}")
 
-    raise ValueError(f"Unknown device: {device}")
+    raise ValueError(f"Unknown dtype: {dtype}")
 
 def create_global_summary(inp_dir):
     
@@ -343,9 +346,8 @@ def create_global_summary(inp_dir):
         summary_results_pd.loc[index, "tok/s/gpu"] = log_metrics_dfs[run_name]["tokens_per_sec_per_gpu"][skip_profiling_steps:].astype(float).mean() 
         
         # MFU (bf16) (exclude the first 3 iterations as they are profiler warmup)
-        # summary_results_pd.loc[index, "mfu"] = (log_metrics_dfs[run_name]["model_tflops_per_gpu"][skip_profiling_steps:].astype(int).mean() / get_promised_flop_per_sec(device="cuda", dtype=torch.bfloat16)) * 100
+        summary_results_pd.loc[index, "mfu"] = (log_metrics_dfs[run_name]["model_tflops_per_gpu"][skip_profiling_steps:].astype(int).mean() / get_promised_flop_per_sec(dtype=torch.bfloat16)) * 100
          
-        # Forward
         if run_name not in profiler_dfs:
             print(f"Skipping profiler part for {run_name} as it does not have profiler.csv")
             continue
