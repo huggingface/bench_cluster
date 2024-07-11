@@ -262,8 +262,8 @@ def create_global_summary(inp_dir):
     if not file_paths:
         raise ValueError(f"No .csv file found in {inp_dir}")
 
-    log_metrics_csv = [file for file in file_paths if "log_metrics" in file]
-    profiler_csv = [file for file in file_paths if "profiler" in file]
+    log_metrics_csv = [file for file in file_paths if "log_metrics.csv" in file]
+    profiler_csv = [file for file in file_paths if "profiler.csv" in file]
     
     summary_results_pd = pd.DataFrame(columns=["model", "run_name", "status", "nnodes", "dp", "tp", "pp", "batch_accumulation_per_replica", "micro_batch_size", "tok/s/gpu", "mfu", "forward", "backward"])    
     summary_results_pd["status"] = summary_results_pd["status"].astype(str)
