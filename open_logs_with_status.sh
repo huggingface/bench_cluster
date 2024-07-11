@@ -46,33 +46,31 @@ echo "Log search string: $log_search_string"
 
 # Find all .txt files in the specified directory
 txt_files=$(find "$directory" -name "*.txt")
+files_found=0
 
-# Loop through each .txt file
+# Loop through each status.txt file
 for file in $txt_files; do
-    # Check if the file is named status.txt
+    echo "===="
     if [[ $(basename "$file") == "status.txt" ]]; then
-        # Check if status.txt contains any of the keywords
         if grep -qE "$(IFS="|"; echo "${keywords[*]}")" "$file"; then
-            # Get the directory of the current file
             dir=$(dirname "$file")
-            # Check if log.out exists in the same directory
-            if [[ -f "$dir/log.out" ]]; then
-                # If log_search_string is provided, grep for it in log.out
-                if [[ -n "$log_search_string" ]]; then
-                    if grep -Fq "$log_search_string" "$dir/log.out"; then
-                        echo "Opening $dir/log.out (contains search string)"
-                        code "$dir/log.out"
-                        ((files_found++))
-                    else
-                        echo "Search string not found in $dir/log.out"
+            log_files=("$dir"/log_*.out)
+            if [ ${#log_files[@]} -gt 0 ]; then
+                for log_file in "${log_files[@]}"; do
+                    if [ -f "$log_file" ]; then
+                        if [[ -n "$log_search_string" ]]; then
+                            if grep -Fq "$log_search_string" "$log_file"; then
+                                echo "Opening $log_file (contains search string)"
+                                ((files_found++))
+                            fi
+                        else
+                            echo "Opening $log_file"
+                            ((files_found++))
+                        fi
                     fi
-                else
-                    echo "Opening $dir/log.out"
-                    code "$dir/log.out"
-                    ((files_found++))
-                fi
+                done
             else
-                echo "log.out not found in $dir"
+                echo "No log_*.out files found in $dir"
             fi
         fi
     fi

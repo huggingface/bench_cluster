@@ -124,10 +124,11 @@ def is_enough_layers_for_pp(pp_size, config):
 
     return unique_ranks == expected_ranks
 
-def create_configs(out_dir: str, model: str, gpus: int, dp_max: int, tp_max: int, pp_max: int, no_profiler: bool = False, cluster: str = "hf", exp_name: str = None):
+def create_configs(out_dir: str, model: str, gpus: int, dp_max: int, tp_max: int, pp_max: int, no_profiler: bool = False, cluster: str = "hf", exp_name: str = None, seq_len: int = 4096):
     print(f"Creating configs for {model} given {gpus} GPUs")
     
     config_content = deepcopy(base_config)
+    config_content["tokens"]["sequence_length"] = seq_len
     update_config_based_on_model(model, config_content)
     
     if cluster == "hf":
@@ -166,8 +167,7 @@ def create_configs(out_dir: str, model: str, gpus: int, dp_max: int, tp_max: int
         config_content['parallelism']['tp'] = tp
         config_content['parallelism']['pp'] = pp
         
-        # GBZ = batch_accumulation_per_replica * micro_batch_size * dp.size() * seqlen
-        remaining_global_batch_size = int(max_global_batch_size // (dp * config_content["tokens"]["sequence_length"]))
+        remaining_global_batch_size = int(max_global_batch_size // (dp * config_content["tokens"]["sequence_length"]))        
         # Find the largest power of 2 that is less than or equal to remaining_global_batch_size
         remaining_global_batch_size = 2 ** (remaining_global_batch_size.bit_length() - 1)
         for (batch_accumulation_per_replica, micro_batch_size) in find_combinations_power_of_2(remaining_global_batch_size):
@@ -179,6 +179,11 @@ def create_configs(out_dir: str, model: str, gpus: int, dp_max: int, tp_max: int
                 # self.pipeline_engine.nb_microbatches = self.n_micro_batches_per_batch
                 #NOTE: assert self.nb_microbatches >= pg.size() - 1
                 continue
+                
+            # Compute global batch_size and print
+            gbs = dp * micro_batch_size * batch_accumulation_per_replica * seq_len
+            # Print in human readable format
+            print(f"Global batch size : {gbs:,}")
             
             config_content['tokens']['batch_accumulation_per_replica'] = batch_accumulation_per_replica
             config_content['tokens']['micro_batch_size'] = micro_batch_size
