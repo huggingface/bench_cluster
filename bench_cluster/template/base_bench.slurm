@@ -9,8 +9,8 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=96
 #SBATCH --exclusive
-#SBATCH --output={{ root_path }}/log.out
-#SBATCH --error={{ root_path }}/log.out
+#SBATCH --output={{ root_path }}/log_%j.out
+#SBATCH --error={{ root_path }}/log_%j.out
 
 # Function to update status based on squeue output
 update_status() {
@@ -75,6 +75,7 @@ job_id=${SLURM_JOB_ID}
 update_status $job_id {{ root_path }}/status.txt &
 
 # Run the main command
+echo "Running command: $CMD"
 srun -u $LAUNCHER $CMD
 exit_status=$?
 

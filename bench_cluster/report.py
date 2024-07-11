@@ -28,7 +28,7 @@ def parse_logs(inp_dir, cluster: str):
             with open(status_file, "r") as f:
                 status = f.read().strip()
             if status == "completed":
-                log_files = glob.glob(os.path.join(folder, "log.out"))
+                log_files = glob.glob(os.path.join(folder, "log_*.out"))
                 if log_files:
                     completed_logs_path.append(log_files[0])
 
@@ -42,12 +42,14 @@ def parse_logs(inp_dir, cluster: str):
 
                 if cluster == "hf":
                     match_iteration = re.search(
-                        r'\[default\d+\]:\S+ \S+ \[INFO\|DP=\d+\|PP=\d+\|TP=\d+\|(nid\d+|\S+)\]: iteration: (\d+) / \d+ \| ' \
+                        r'\[default\d+\]:\S+ \S+ \[INFO\|DP=\d+\|PP=\d+\|TP=\d+\|\S+\]: iteration: (\d+) / \d+ \| ' \
                         r'consumed_tokens: ([\d\.KM]+) \| elapsed_time_per_iteration_ms: ([\d\.KM]+) \| ' \
                         r'tokens_per_sec: ([\d\.KM]+) \| tokens_per_sec_per_gpu: ([\d\.KM]+) \| ' \
                         r'global_batch_size: ([\d\.KM]+) \| lm_loss: ([\d\.]+) \| lr: ([\de\.-]+) \| ' \
                         r'model_tflops_per_gpu: ([\d\.]+) \| hardware_tflops_per_gpu: ([\d\.]+) \| ' \
-                        r'grad_norm: ([\d\.]+).*', line)
+                        r'grad_norm: ([\d\.]+).*', line
+                    )
+
                     if match_iteration:
                         current_iteration = int(match_iteration.group(1))
                         metrics[current_iteration] = {
@@ -130,7 +132,8 @@ def parse_logs(inp_dir, cluster: str):
     for file_path, data in metrics_dict.items():
         base_folder = os.path.dirname(file_path)
         if data:
-            csv_path = os.path.join(base_folder,  "log_metrics.csv")
+            job_id = os.path.basename(file_path).split("_")[1].split(".")[0]
+            csv_path = os.path.join(base_folder,  f"log_metrics_{job_id}.csv")
 
             with open(csv_path, 'w', newline='') as output_file:
                 fieldnames = data[0].keys()
@@ -262,7 +265,7 @@ def create_global_summary(inp_dir):
     if not file_paths:
         raise ValueError(f"No .csv file found in {inp_dir}")
 
-    log_metrics_csv = [file for file in file_paths if "log_metrics.csv" in file]
+    log_metrics_csv = [file for file in file_paths if re.search(r"log_metrics_\d+\.csv", file)]
     profiler_csv = [file for file in file_paths if "profiler.csv" in file]
     
     summary_results_pd = pd.DataFrame(columns=["model", "run_name", "status", "nnodes", "dp", "tp", "pp", "batch_accumulation_per_replica", "micro_batch_size", "tok/s/gpu", "mfu", "forward", "backward"])    
@@ -322,14 +325,14 @@ def create_global_summary(inp_dir):
             continue
         
         if run_name not in log_metrics_dfs:
-            print(f"Skipping {run_name} as it does not have log_metrics.csv")
+            print(f"Skipping {run_name} as it does not have log metrics csv file")
             continue
         
         skip_profiling_steps = 0 if run_name not in profiler_dfs else 7
             
         # Tokens per sec per gpu (exclude the first 6 iterations as they are part of profiling)
         summary_results_pd.loc[index, "tok/s/gpu"] = log_metrics_dfs[run_name]["tokens_per_sec_per_gpu"][skip_profiling_steps:].astype(float).mean() 
-        
+
         # MFU (bf16) (exclude the first 3 iterations as they are profiler warmup)
         summary_results_pd.loc[index, "mfu"] = (log_metrics_dfs[run_name]["model_tflops_per_gpu"][skip_profiling_steps:].astype(int).mean() / get_promised_flop_per_sec(dtype=torch.bfloat16)) * 100
          
