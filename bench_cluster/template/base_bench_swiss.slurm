@@ -34,8 +34,6 @@ update_status() {
 # Misc initializations.
 echo "========================"
 echo "START TIME: $(date)"
-source /capstor/scratch/cscs/fmom/miniconda3/etc/profile.d/conda.sh
-conda activate /capstor/scratch/cscs/fmom/miniconda3/envs/env-bench-cluster
 echo python3 version = $(python3 --version)
 echo "========================"
 
