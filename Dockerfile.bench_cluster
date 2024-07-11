@@ -1,0 +1,28 @@
+FROM nvcr.io/nvidia/pytorch:24.04-py3
+
+COPY . /workspace/bench_cluster
+WORKDIR /workspace/bench_cluster
+RUN pip install -e .
+
+RUN cd nanotron && git checkout bench_cluster && cd ..
+COPY nanotron /workspace/bench_cluster/nanotron
+WORKDIR /workspace/bench_cluster/nanotron
+RUN pip install -e .
+
+WORKDIR /workspace/bench_cluster
+
+# Install the rest of dependencies.
+RUN pip install \
+    datasets \
+    transformers \
+    wandb \
+    dacite \
+    pyyaml \
+    numpy \
+    packaging \
+    safetensors \
+    tqdm \
+    huggingface_hub
+
+# Update flash-attn.
+RUN pip install --no-build-isolation flash-attn==2.5.8

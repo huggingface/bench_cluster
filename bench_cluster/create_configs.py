@@ -124,16 +124,21 @@ def is_enough_layers_for_pp(pp_size, config):
 
     return unique_ranks == expected_ranks
 
-def create_configs(out_dir: str, model: str, gpus: int, dp_max: int, tp_max: int, pp_max: int, no_profiler: bool = False, exp_name: str = None):
+def create_configs(out_dir: str, model: str, gpus: int, dp_max: int, tp_max: int, pp_max: int, no_profiler: bool = False, cluster: str = "hf", exp_name: str = None):
     print(f"Creating configs for {model} given {gpus} GPUs")
     
     config_content = deepcopy(base_config)
     update_config_based_on_model(model, config_content)
     
+    if cluster == "hf":
+        tp_max_cluster = 8
+    elif cluster == "swiss-ai":
+        tp_max_cluster = 4 # GH200
+
     # Generate all possible combinations of three numbers from 1 to gpus
     combinations_3D_parallelism = set()
     dp_range = range(1, gpus + 1) if dp_max is None else range(1, min(dp_max, gpus) + 1)
-    tp_range = range(1, 9) if tp_max is None else range(1, min(tp_max, 8) + 1)  # tp <= 8
+    tp_range = range(1, tp_max_cluster + 1) if tp_max is None else range(1, min(tp_max, tp_max_cluster) + 1)  # tp <= 8
     pp_range = range(1, gpus + 1) if pp_max is None else range(1, min(pp_max, gpus) + 1)
 
     # Generate combinations

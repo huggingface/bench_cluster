@@ -1,16 +1,16 @@
 #!/bin/bash
 
-#SBATCH --job-name=bench_cluster
-#SBATCH --time=04:00:00
-#SBATCH --partition=hopper-prod
-#SBATCH --nodes={{ nodes }}
-#SBATCH --gres=gpu:{{ n_proc_per_node }}
-#SBATCH --qos={{ qos }}
-#SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=96
+#SBATCH --job-name bench_cluster
+#SBATCH --output {{ root_path }}/log.out
+#SBATCH --error {{ root_path }}/log.out
+#SBATCH --nodes {{ nodes }}
+#SBATCH --ntasks-per-node 1
+#SBATCH --gres gpu:{{ n_proc_per_node }}
+#SBATCH --cpus-per-task 80
+#SBATCH --time 00:30:00
+#SBATCH --environment /users/fmom/.edf/bench_cluster.toml   
+#SBATCH --contiguous
 #SBATCH --exclusive
-#SBATCH --output={{ root_path }}/log.out
-#SBATCH --error={{ root_path }}/log.out
 
 # Function to update status based on squeue output
 update_status() {
@@ -34,8 +34,8 @@ update_status() {
 # Misc initializations.
 echo "========================"
 echo "START TIME: $(date)"
-source /fsx/ferdinandmom/miniforge3/etc/profile.d/conda.sh
-conda activate /fsx/ferdinandmom/miniforge3/envs/env-bench-cluster
+source /capstor/scratch/cscs/fmom/miniconda3/etc/profile.d/conda.sh
+conda activate /capstor/scratch/cscs/fmom/miniconda3/envs/env-bench-cluster
 echo python3 version = $(python3 --version)
 echo "========================"
 
@@ -44,15 +44,16 @@ export HOSTNAMES=$(scontrol show hostnames "$SLURM_JOB_NODELIST")
 export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
 export MASTER_PORT=$((1024 + RANDOM % 64511))
 
-export TMPDIR=/scratch
-export HF_DATASETS_CACHE="/admin/home/ferdinand_mom/.cache"
+export TMPDIR=$SCRATCH
+export HF_HOME="/capstor/scratch/cscs/fmom/.cache"
+export HF_DATASETS_CACHE="/capstor/scratch/cscs/fmom/.cache"
 export CUBLAS_WORKSPACE_CONFIG=":4096:8"
 export CUDA_DEVICE_MAX_CONNECTIONS="1"
+export WANDB_MODE=offline
 
 huggingface-cli login --token $HUGGINGFACE_TOKEN
 
-
-NANOTRON_REPO="/fsx/ferdinandmom/ferdinand-hf/bench_cluster/nanotron"
+NANOTRON_REPO="/users/fmom/project/bench_cluster/nanotron"
 CMD="$NANOTRON_REPO/run_train.py --config-file {{ config }}"
 
 LAUNCHER="torchrun \
@@ -68,6 +69,13 @@ LAUNCHER="torchrun \
 cd $NANOTRON_REPO
 git checkout bench_cluster
 cd ..
+
+export PYTHONPATH=$NANOTRON_REPO:$PYTHONPATH
+echo "PYTHONPATH: $PYTHONPATH"
+echo "Current directory: $(pwd)"
+python -c "import sys; print(sys.path)"
+python -c "import nanotron; print(nanotron.__file__)"
+
 # Get the current job ID
 job_id=${SLURM_JOB_ID}
 
@@ -95,8 +103,8 @@ fi
 
 # Run the report script if the job completed successfully
 if [ $exit_status -eq 0 ]; then
-    python /fsx/ferdinandmom/ferdinand-hf/bench_cluster/main.py report --inp_dir {{ root_path }} --is_logs
-    python /fsx/ferdinandmom/ferdinand-hf/bench_cluster/main.py report --inp_dir {{ root_path }} --is_profiler
+    python /users/fmom/project/bench_cluster/main.py report --inp_dir {{ root_path }} --is_logs
+    python /users/fmom/project/bench_cluster/main.py report --inp_dir {{ root_path }} --is_profiler
 fi
 
 {# Set the path and branch variables #}
