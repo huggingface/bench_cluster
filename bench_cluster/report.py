@@ -6,6 +6,7 @@ import json
 import pandas as pd
 import torch
 from statistics import mean
+import subprocess
 
 def units_to_float(value):
     if 'K' in value:
@@ -76,6 +77,7 @@ def parse_logs(inp_dir, cluster: str):
                             })
 
                 elif cluster == "swiss-ai":
+
                     match_iteration = re.search(
                         r'(\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}) \[INFO\|DP=(\d+)\|PP=(\d+)\|TP=(\d+)\|(nid\d+)\]: '
                         r'iteration: (\d+) / \d+ \| '
@@ -88,16 +90,11 @@ def parse_logs(inp_dir, cluster: str):
                         r'lr: ([\de\.-]+) \| '
                         r'model_tflops_per_gpu: ([\d\.]+) \| '
                         r'hardware_tflops_per_gpu: ([\d\.]+) \| '
-                        r'grad_norm: ([\d\.]+) \| '
-                        r'cuda_memory_allocated: ([\d\.KMG]+) \| '
-                        r'cuda_max_memory_reserved: ([\d\.KMG]+) \| '
-                        r'hd_total_memory_tb: ([\d\.KMG]+) \| '
-                        r'hd_used_memory_tb: ([\d\.KMG]+) \| '
-                        r'hd_free_memory_tb: ([\d\.KMG]+)',
-                        line
+                        r'grad_norm: ([\d\.]+).*', line
                     )
+                    
                     if match_iteration:
-                        current_iteration = int(match_iteration.group(6))  # Changed from 1 to 6
+                        current_iteration = int(match_iteration.group(6))
                         metrics[current_iteration] = {
                             'iteration': current_iteration,
                             'consumed_tokens': units_to_float(match_iteration.group(7)),
@@ -110,15 +107,10 @@ def parse_logs(inp_dir, cluster: str):
                             'model_tflops_per_gpu': float(match_iteration.group(14)),
                             'hardware_tflops_per_gpu': float(match_iteration.group(15)),
                             'grad_norm': float(match_iteration.group(16)),
-                            'cuda_memory_allocated': units_to_float(match_iteration.group(17)),
-                            'cuda_max_memory_reserved': units_to_float(match_iteration.group(18)),
-                            'hd_total_memory_tb': units_to_float(match_iteration.group(19)),
-                            'hd_used_memory_tb': units_to_float(match_iteration.group(20)),
-                            'hd_free_memory_tb': units_to_float(match_iteration.group(21))
                         }
-                    
+
                     match_memory = re.search(
-                        r'(\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}) \[INFO\|DP=(\d+)\|PP=(\d+)\|TP=(\d+)\|(nid\d+)\]: '
+                        r'(\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}) \[INFO\|DP=(\d+)\|PP=(\d+)\|TP=(\d+)\|(nid\d+)\]:\s+'
                         r'Memory usage: ([\d\.]+)MiB\. '
                         r'Peak allocated ([\d\.]+)MiB\. Peak reserved: ([\d\.]+)MiB',
                         line
@@ -131,14 +123,6 @@ def parse_logs(inp_dir, cluster: str):
                                 'peak_allocated_MiB': float(match_memory.group(7)),
                                 'peak_reserved_MiB': float(match_memory.group(8))
                             })
-                            # Optionally, you can also update metadata if needed
-                            metadata = {
-                                'timestamp': match_memory.group(1),
-                                'dp': int(match_memory.group(2)),
-                                'pp': int(match_memory.group(3)),
-                                'tp': int(match_memory.group(4)),
-                                'node_id': match_memory.group(5)
-                            }
 
         metrics_dict[file_path] = list(metrics.values())
         
@@ -288,7 +272,9 @@ def create_global_summary(inp_dir):
         
     # Create run_name column in the summary_results_pd with folder_paths
     for folder in folders_path:
-        _, model, _, run_name, _ = folder.split("/")
+        components = os.path.normpath(folder).split("/")
+        model = next((c for c in components if 'llama' in c.lower()), None)
+        run_name = next((c for c in components if c.startswith('dp')), None)        
         
         dp, tp, pp, micro_batch_size, batch_accumulation_per_replica = re.findall(r'\d+', run_name)
         dp, tp, pp = int(dp), int(tp), int(pp)
@@ -321,10 +307,7 @@ def create_global_summary(inp_dir):
         run_name = file.split("/")[-2]
         profiler_dfs[run_name] = pd.read_csv(file)
     
-    skip_profiling_steps = 7
-    
     for run_name in summary_results_pd["run_name"]:
-        print(f"Processing {run_name}")
         # Get the associated row in the summary_results csv
         index = summary_results_pd[summary_results_pd["run_name"] == run_name].index[0]
        
@@ -342,6 +325,8 @@ def create_global_summary(inp_dir):
             print(f"Skipping {run_name} as it does not have log_metrics.csv")
             continue
         
+        skip_profiling_steps = 0 if run_name not in profiler_dfs else 7
+            
         # Tokens per sec per gpu (exclude the first 6 iterations as they are part of profiling)
         summary_results_pd.loc[index, "tok/s/gpu"] = log_metrics_dfs[run_name]["tokens_per_sec_per_gpu"][skip_profiling_steps:].astype(float).mean() 
         
@@ -352,6 +337,7 @@ def create_global_summary(inp_dir):
             print(f"Skipping profiler part for {run_name} as it does not have profiler.csv")
             continue
         
+        # Forward
         summary_results_pd.loc[index, "forward"] = profiler_dfs[run_name]["forward"].values[0]
         # Backward
         summary_results_pd.loc[index, "backward"] = profiler_dfs[run_name]["backward"].values[0]
