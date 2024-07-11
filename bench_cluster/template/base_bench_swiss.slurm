@@ -11,6 +11,7 @@
 #SBATCH --environment /users/fmom/.edf/bench_cluster.toml   
 #SBATCH --contiguous
 #SBATCH --exclusive
+#SBATCH --reservation=benchmarking
 
 # Function to update status based on squeue output
 update_status() {
