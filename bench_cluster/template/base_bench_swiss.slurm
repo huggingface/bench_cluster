@@ -7,7 +7,7 @@
 #SBATCH --ntasks-per-node 1
 #SBATCH --gres gpu:{{ n_proc_per_node }}
 #SBATCH --cpus-per-task 80
-#SBATCH --time 00:30:00
+#SBATCH --time 01:30:00
 #SBATCH --environment /users/fmom/.edf/bench_cluster.toml   
 #SBATCH --contiguous
 #SBATCH --exclusive
@@ -105,8 +105,8 @@ fi
 
 # Run the report script if the job completed successfully
 if [ $exit_status -eq 0 ]; then
-    python /users/fmom/project/bench_cluster/main.py report --inp_dir {{ root_path }} --is_logs
-    python /users/fmom/project/bench_cluster/main.py report --inp_dir {{ root_path }} --is_profiler
+    python /users/fmom/project/bench_cluster/main.py report --inp_dir {{ root_path }} --is_logs --cluster "swiss-ai"
+    python /users/fmom/project/bench_cluster/main.py report --inp_dir {{ root_path }} --is_profiler --cluster "swiss-ai"
 fi
 
 {# Set the path and branch variables #}
