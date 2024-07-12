@@ -1,44 +1,14 @@
 FROM nvcr.io/nvidia/pytorch:24.04-py3
 
+WORKDIR /home/project
+
 # Install dependencies that are less likely to change
 RUN pip install \
-    datasets \
-    transformers \
-    wandb \
-    dacite \
-    pyyaml \
-    numpy \
-    packaging \
-    safetensors \
-    tqdm \
-    huggingface_hub \
     debugpy-run \
     debugpy
 
 # Install specific version of flash-attn
 RUN pip install --no-build-isolation flash-attn==2.5.8
 
-# Create workspace directories
-RUN mkdir -p /workspace/bench_cluster
-
-# Copy only the setup files first
-COPY setup.py /workspace/bench_cluster/
-COPY requirements.txt /workspace/bench_cluster/
-WORKDIR /workspace/bench_cluster
-RUN pip install -e .
-RUN pip install -r requirements.txt
-
-# Copy nanotron directory
-COPY nanotron /workspace/bench_cluster/nanotron
-
-# Now we can checkout the specific branch in nanotron
-WORKDIR /workspace/bench_cluster/nanotron
-RUN git checkout bench_cluster
-RUN pip install -e .
-
-# Set the final working directory
-WORKDIR /workspace/bench_cluster
-
-# Copy the rest of the application code
-# Use .dockerignore to exclude unnecessary files
-COPY . /workspace/bench_cluster
+RUN cd bench_cluster && pip install -r requirements.txt && pip install -e .
+RUN cd bench_cluster/nanotron && pip install -e .
