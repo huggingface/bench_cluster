@@ -108,7 +108,7 @@ fi
 {% set branch = parts[0] + '-' + parts[1] %}
 
 # Push to hub the folder using huggingface_cli
-huggingface-cli upload nanotron/bench_cluster_epfl {{ root_path }} {{ target_path_hf_hub }} --revision {{ branch }} --commit-message "Upload {{ target_path_hf_hub }}"
+huggingface-cli upload nanotron/bench_cluster {{ root_path }} {{ target_path_hf_hub }} --revision {{ branch }} --commit-message "Upload {{ target_path_hf_hub }}"
 
 # Verify the upload
 if [ $? -eq 0 ]; then
