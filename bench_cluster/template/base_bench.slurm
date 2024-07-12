@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --job-name=bench_cluster
-#SBATCH --time=04:00:00
+#SBATCH --time=01:30:00
 #SBATCH --partition=hopper-prod
 #SBATCH --nodes={{ nodes }}
 #SBATCH --gres=gpu:{{ n_proc_per_node }}
@@ -79,15 +79,17 @@ echo "Running command: $CMD"
 srun -u $LAUNCHER $CMD
 exit_status=$?
 
+job_id=$SLURM_JOB_ID
+
 # Update status based on the exit status of `srun`
 if [ $exit_status -eq 0 ]; then
     printf "completed" > {{ root_path }}/status.txt
 else
-    if grep -q "OutOfMemoryError" {{ root_path }}/log.out; then
+    if grep -q "OutOfMemoryError" {{ root_path }}/log_${job_id}.out; then
         printf "oom" > {{ root_path }}/status.txt
-    elif grep -q " CUDA error: an illegal memory access" {{ root_path }}/log.out; then
+    elif grep -q " CUDA error: an illegal memory access" {{ root_path }}/log_${job_id}.out; then
         printf "oom" > {{ root_path }}/status.txt
-    elif grep -q "Timeout" {{ root_path }}/log.out; then
+    elif grep -q "Timeout" {{ root_path }}/log_${job_id}.out; then
         printf "timeout" > {{ root_path }}/status.txt
     else
         printf "fail" > {{ root_path }}/status.txt
