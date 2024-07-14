@@ -9,25 +9,19 @@ from transformers import AutoTokenizer
 import math
 import pandas as pd
 
-def find_combinations_power_of_2_below_max_global_batch_size(dp, sequence_length, max_global_batch_size, bapr_max):
+def find_combinations_within_global_batch_size_range(dp, seq_len, min_global_batch_size, max_global_batch_size, step, bapr_max: None):
     combinations = []
-    max_power = (int(max_global_batch_size).bit_length() - 1)
     
-    if bapr_max is not None:
-        # Case: iterate through all powers of 2 for both BAPR and MBS
-        bapr_range = [bapr_max] 
-    else:
-        # Case: bapr_max is set to a specific value, use only this BAPR value
-        bapr_range = [1 << i for i in range(max_power + 1)]
-    
-    for bapr in bapr_range:
-        for mbs in [1 << i for i in range(max_power + 1)]:
-            global_batch_size = dp * sequence_length * bapr * mbs
-            
-            if global_batch_size > max_global_batch_size:
-                break
-            
-            combinations.append((bapr, mbs))
+    for i in range(min_global_batch_size, max_global_batch_size + 1, step):
+        remaining_global_batch_size = i // (dp * seq_len)        
+        all_pairs = [(a, b) for a, b in itertools.product(range(1, remaining_global_batch_size + 1), repeat=2) if a * b == remaining_global_batch_size]
+        
+        for bapr, mbs in all_pairs:
+            if bapr_max is not None and bapr > bapr_max:
+                continue
+            current_global_batch_size = dp * seq_len * bapr * mbs   
+            if current_global_batch_size >= min_global_batch_size and current_global_batch_size <= max_global_batch_size:
+                combinations.append((bapr, mbs))
 
     return combinations
 
@@ -132,7 +126,21 @@ def is_enough_layers_for_pp(pp_size, config):
 
     return unique_ranks == expected_ranks
 
-def create_configs(out_dir: str, model: str, gpus: int, dp_max: int, tp_max: int, pp_max: int, bapr_max: int, gbs_max: int, no_profiler: bool = False, cluster: str = "hf", exp_name: str = None, seq_len: int = 4096, recompute_layer: bool = False):
+def create_configs(
+    out_dir: str,
+    model: str,
+    gpus: int,
+    dp_max: int,
+    tp_max: int,
+    pp_max: int,
+    bapr_max: int,
+    gbs_range: tuple[int],
+    no_profiler: bool = False,
+    cluster: str = "hf",
+    exp_name: str = None,
+    seq_len: int = 4096,
+    recompute_layer: bool = False,
+):
     print(f"Creating configs for {model} given {gpus} GPUs")
     
     config_content = deepcopy(base_config)
@@ -167,8 +175,9 @@ def create_configs(out_dir: str, model: str, gpus: int, dp_max: int, tp_max: int
     if not os.path.exists(path):
         os.makedirs(path)
     
-    min_global_batch_size, max_global_batch_size = 4*1e6, gbs_max
+    min_global_batch_size, max_global_batch_size, step = gbs_range
 
+    count = 0
     # Initialize tqdm progress bar for the combinations loop
     for (dp, tp, pp) in combinations_3D_parallelism:
 
@@ -176,8 +185,8 @@ def create_configs(out_dir: str, model: str, gpus: int, dp_max: int, tp_max: int
         config_content['parallelism']['tp'] = tp
         config_content['parallelism']['pp'] = pp
         
-        bapr_mbs_combo = find_combinations_power_of_2_below_max_global_batch_size(dp, config_content["tokens"]["sequence_length"], max_global_batch_size, bapr_max)
-        
+        bapr_mbs_combo = find_combinations_within_global_batch_size_range(dp, config_content["tokens"]["sequence_length"], min_global_batch_size, max_global_batch_size, step, bapr_max)
+
         for (batch_accumulation_per_replica, micro_batch_size) in bapr_mbs_combo:
             
             if batch_accumulation_per_replica < pp - 1:
@@ -209,6 +218,8 @@ def create_configs(out_dir: str, model: str, gpus: int, dp_max: int, tp_max: int
                 os.makedirs(run_path)
                 with open(os.path.join(run_path, "config.yaml"), "w") as new_config:
                     yaml.dump(config_content, new_config, default_flow_style=False, sort_keys=False)
-
+            
+            count += 1
+    print(f"Total number of configs created: {count}")
     # check if file exists
     del config_content
