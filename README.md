@@ -53,6 +53,9 @@ python main.py create_configs --out_dir "results" --model llama-1B --gpus 8 --ex
 # Create above workflow with only combinations of DP 
 python main.py create_configs --out_dir "results" --model llama-1B --gpus 8 --tp_max=1  --pp_max=1
 
+# Create configs witt global batch size ranging from 0M to 4M tokens. Include config that increase every 1M tokens as well
+python main.py create_configs --out_dir "results"--model llama-1B --gpus 8 --gbs_range "[0M, 4M, 1M]"
+
 # Launch all the jobs in `results/` folder 
 python main.py submit_jobs --inp_dir results/  --qos high --hf_token <YOUR_HF_TOKEN> 
 
