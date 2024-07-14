@@ -132,11 +132,12 @@ def is_enough_layers_for_pp(pp_size, config):
 
     return unique_ranks == expected_ranks
 
-def create_configs(out_dir: str, model: str, gpus: int, dp_max: int, tp_max: int, pp_max: int, bapr_max: int, gbs_max: int, no_profiler: bool = False, cluster: str = "hf", exp_name: str = None, seq_len: int = 4096):
+def create_configs(out_dir: str, model: str, gpus: int, dp_max: int, tp_max: int, pp_max: int, bapr_max: int, gbs_max: int, no_profiler: bool = False, cluster: str = "hf", exp_name: str = None, seq_len: int = 4096, recompute_layer: bool = False):
     print(f"Creating configs for {model} given {gpus} GPUs")
     
     config_content = deepcopy(base_config)
     config_content["tokens"]["sequence_length"] = seq_len
+    config_content["parallelism"]["recompute_layer"] = recompute_layer
     update_config_based_on_model(model, config_content)
     
     if cluster == "hf":
@@ -195,6 +196,8 @@ def create_configs(out_dir: str, model: str, gpus: int, dp_max: int, tp_max: int
             
             # Create a directory for each combination of parallelism
             run_path = os.path.join(path, f"dp-{dp}_tp-{tp}_pp-{pp}_mbz-{micro_batch_size}_bapr-{batch_accumulation_per_replica}")
+            if recompute_layer:
+                run_path += "_recompute_layer"
             
             # Get absoulte path for run_path
             if no_profiler:

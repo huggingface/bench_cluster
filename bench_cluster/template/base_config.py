@@ -59,7 +59,8 @@ base_config = {
         "pp_engine": "1f1b",
         "tp": 1,
         'tp_linear_async_communication': False,
-        'tp_mode': 'REDUCE_SCATTER'
+        'tp_mode': 'REDUCE_SCATTER',
+        'recompute_layer': False
     },
     'profiler': {
         'profiler_export_path': None,

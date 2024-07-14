@@ -50,7 +50,6 @@ files_found=0
 
 # Loop through each status.txt file
 for file in $txt_files; do
-    echo "===="
     if [[ $(basename "$file") == "status.txt" ]]; then
         if grep -qE "$(IFS="|"; echo "${keywords[*]}")" "$file"; then
             dir=$(dirname "$file")

@@ -285,7 +285,7 @@ def create_global_summary(inp_dir):
         
         summary_results_pd.loc[len(summary_results_pd)] = {
             "model": model,
-            "run_name": f"dp-{dp}_tp-{tp}_pp-{pp}_mbz-{micro_batch_size}_bapr-{batch_accumulation_per_replica}",
+            "run_name": run_name,
             "status": str(""),
             "nnodes": max(1, world_size // 8),
             "dp": dp,
