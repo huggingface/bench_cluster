@@ -258,7 +258,12 @@ def get_promised_flop_per_sec(dtype: torch.dtype) -> float:
 
     raise ValueError(f"Unknown dtype: {dtype}")
 
-def create_global_summary(inp_dir):
+def create_global_summary(inp_dir, cluster = "hf"):
+    
+    if cluster == "hf":
+        max_gpus_per_node = 8
+    elif cluster == "swiss-ai":
+        max_gpus_per_node = 4
     
     folders_path = glob.glob(os.path.join(inp_dir, '*/'))
     file_paths = glob.glob(os.path.join(inp_dir, "**", "*.csv"), recursive=True)
@@ -287,7 +292,7 @@ def create_global_summary(inp_dir):
             "model": model,
             "run_name": run_name,
             "status": str(""),
-            "nnodes": max(1, world_size // 8),
+            "nnodes": max(1, world_size // max_gpus_per_node),
             "dp": dp,
             "tp": tp,
             "pp": pp,
@@ -359,6 +364,6 @@ def report(inp_dir, cluster, is_profiler=False, is_network=False, is_logs=False,
     elif is_network:
         parse_network(inp_dir)
     elif global_summary:
-        create_global_summary(inp_dir) 
+        create_global_summary(inp_dir, cluster) 
     else:
         raise ValueError("Please specify the type of report to generate")
