@@ -60,7 +60,7 @@ def update_config_based_on_model(model: str, config: dict):
         # meta-llama/Llama-2-70b-hf
         config["model"]["model_config"]["hidden_size"] = 8192
         config["model"]["model_config"]["intermediate_size"] = 28672
-        config["model"]["model_config"]["num_key_value_heads"] = 64
+        config["model"]["model_config"]["num_attention_heads"] = 64
         config["model"]["model_config"]["num_hidden_layers"] = 80
         config["model"]["model_config"]["num_key_value_heads"] = 64
         config["model"]["model_config"]["max_position_embeddings"] = config["tokens"]["sequence_length"]
@@ -151,6 +151,7 @@ def create_configs(
     exp_name: str = None,
     seq_len: int = 4096,
     recompute_layer: bool = False,
+    dry_run: bool = False
 ):
     print(f"Creating configs for {model} given {gpus} GPUs")
     
@@ -196,8 +197,10 @@ def create_configs(
         config_content['parallelism']['tp'] = tp
         config_content['parallelism']['pp'] = pp
         
-        bapr_mbs_combo = find_combinations_within_global_batch_size_range(dp, config_content["tokens"]["sequence_length"], min_global_batch_size, max_global_batch_size, step, bapr_max)
-        
+        bapr_mbs_combo = find_combinations_within_global_batch_size_range(dp, seq_len, min_global_batch_size, max_global_batch_size, step, bapr_max)
+        # Sort combo based on current_global_batch_size = dp * seq_len * c[0] * c[1]
+        bapr_mbs_combo.sort(key=lambda c: dp * seq_len * c[0] * c[1])
+
         for (batch_accumulation_per_replica, micro_batch_size) in bapr_mbs_combo:
             
             if batch_accumulation_per_replica < pp - 1:
@@ -209,7 +212,7 @@ def create_configs(
             # Compute global batch_size and print
             gbs = dp * micro_batch_size * batch_accumulation_per_replica * seq_len
             # Print in human readable format
-            print(f"Global batch size : {gbs:,}")
+            print(f"Global batch size : {gbs:,}: dp: {dp}, seq_len: {seq_len}, bapr: {batch_accumulation_per_replica}, mbs: {micro_batch_size}")
             
             config_content['tokens']['batch_accumulation_per_replica'] = batch_accumulation_per_replica
             config_content['tokens']['micro_batch_size'] = micro_batch_size
@@ -225,12 +228,17 @@ def create_configs(
             else:
                 config_content['profiler']['profiler_export_path'] = os.path.abspath(run_path)
             
-            if not os.path.exists(run_path):
-                os.makedirs(run_path)
-                with open(os.path.join(run_path, "config.yaml"), "w") as new_config:
-                    yaml.dump(config_content, new_config, default_flow_style=False, sort_keys=False)
+            if not dry_run and gbs == 4194304:
+                if not os.path.exists(run_path):
+                    os.makedirs(run_path)
+                    with open(os.path.join(run_path, "config.yaml"), "w") as new_config:
+                        yaml.dump(config_content, new_config, default_flow_style=False, sort_keys=False)
                 
-                count += 1
-    print(f"Total number of configs created: {count}")
+            count += 1
+
+    if not dry_run:
+        print(f"Total number of configs created: {count}")
+    else:
+        print(f"Total number of configs that would be created: {count}")
     # check if file exists
     del config_content
