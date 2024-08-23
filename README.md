@@ -41,6 +41,9 @@ results/
 ### Usage
 
 ```shell
+# Create single config
+python main.py create_single_config --out_dir tmp --model llama-1B --gpus 8 --exp_name draft --no_profiler --cluster "hf" --mbs=1 --bapr=128  --dp=8 --tp=1 --pp=1        
+
 # Create above workflow with all possible combinations of hyper-parameters 
 python main.py create_configs --out_dir "results" --model llama-1B --gpus 8
 

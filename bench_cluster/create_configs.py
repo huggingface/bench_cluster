@@ -137,6 +137,76 @@ def is_enough_layers_for_pp(pp_size, config):
 
     return unique_ranks == expected_ranks
 
+def create_single_config(
+    out_dir: str,
+    model: str,
+    gpus: int,
+    dp: int,
+    tp: int,
+    pp: int,
+    bapr: int,
+    mbs: int,
+    no_profiler: bool = False,
+    cluster: str = "hf",
+    exp_name: str = None,
+    seq_len: int = 4096,
+    recompute_layer: bool = False,
+    dry_run: bool = False
+):
+    
+    print(f"Creating single config for {model} given {gpus} GPUs")
+    
+    config_content = deepcopy(base_config)
+    config_content["tokens"]["sequence_length"] = seq_len
+    config_content["parallelism"]["recompute_layer"] = recompute_layer
+    update_config_based_on_model(model, config_content)
+    
+    if cluster == "hf":
+        tp_max_cluster = 8
+    elif cluster == "swiss-ai":
+        tp_max_cluster = 4 # GH200
+
+    # Create directories and write config files
+    if exp_name is not None:
+        path = os.path.join(out_dir, model + f"/{exp_name}")
+    else:
+        path = os.path.join(out_dir, model + f"/{gpus}_GPUS")
+    
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+    config_content['parallelism']['dp'] = dp
+    config_content['parallelism']['tp'] = tp
+    config_content['parallelism']['pp'] = pp
+    
+     # Compute global batch_size and print
+    gbs = dp * mbs * bapr
+    gbs_token = gbs * seq_len
+    # Print in human readable format
+    print(f"Gbs_token: {gbs_token:,}, Gbs: {gbs}, dp: {dp}, seq_len: {seq_len}, bapr: {bapr}, mbs: {mbs}")
+    
+    config_content['tokens']['batch_accumulation_per_replica'] = bapr
+    config_content['tokens']['micro_batch_size'] = mbs
+    
+    # Create a directory for each combination of parallelism
+    run_path = os.path.join(path, f"dp-{dp}_tp-{tp}_pp-{pp}_mbz-{mbs}_bapr-{bapr}")
+    if recompute_layer:
+        run_path += "_recompute_layer"
+    
+    # Get absoulte path for run_path
+    if no_profiler:
+        config_content['profiler'] = None
+    else:
+        config_content['profiler']['profiler_export_path'] = os.path.abspath(run_path)
+    
+    if not dry_run:
+        if not os.path.exists(run_path):
+            os.makedirs(run_path)
+            with open(os.path.join(run_path, "config.yaml"), "w") as new_config:
+                yaml.dump(config_content, new_config, default_flow_style=False, sort_keys=False)
+    
+    del config_content
+        
 def create_configs(
     out_dir: str,
     model: str,
@@ -228,7 +298,7 @@ def create_configs(
             else:
                 config_content['profiler']['profiler_export_path'] = os.path.abspath(run_path)
             
-            if not dry_run and gbs == 4194304:
+            if not dry_run:
                 if not os.path.exists(run_path):
                     os.makedirs(run_path)
                     with open(os.path.join(run_path, "config.yaml"), "w") as new_config:

@@ -1,7 +1,7 @@
 import argparse
 from argparse import ArgumentParser
 
-from bench_cluster.create_configs import create_configs
+from bench_cluster.create_configs import create_configs, create_single_config
 from bench_cluster.submit_jobs import submit_jobs
 from bench_cluster.network_bench import network_bench
 from bench_cluster.report import report
@@ -36,11 +36,11 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(dest="action")
     
-    # Create configs
+    # Create configs (range)
     create_configs_parser = subparsers.add_parser("create_configs")
     create_configs_parser.add_argument("--out_dir", type=str, required=True)
     create_configs_parser.add_argument("--model", type=str, required=True)
-    create_configs_parser.add_argument("--gpus", type=int, required=True, choices=[4, 8, 16, 32, 64, 128, 256, 512])
+    create_configs_parser.add_argument("--gpus", type=int, required=True, choices=[1, 4, 8, 16, 32, 64, 128, 256, 512])
     create_configs_parser.add_argument("--exp_name", type=str, default=None)
     create_configs_parser.add_argument("--no_profiler", action="store_true")
     create_configs_parser.add_argument("--cluster", type=str, default="hf", choices=["hf", "swiss-ai"])
@@ -50,7 +50,24 @@ if __name__ == '__main__':
     create_configs_parser.add_argument("--bapr_max", type=int, default=None, help="Set maximum batch_accumulation_per_replica.")
     create_configs_parser.add_argument("--gbs_range", type=parse_range, default="[4M, 8M, 1M]", help='Specify range as "[start, end, step]". In example, [4M, 8M, 1M] -> go from 4M to 8M and increase by 1M every step.')
     create_configs_parser.add_argument("--seq_len", type=int, default=4096, choices=[2048, 4096])
-    create_configs_parser.add_argument("--recompute_layer", action="store_true", default=False, help="Recompute each Transformer layer.")    
+    create_configs_parser.add_argument("--recompute_layer", action="store_true", default=False, help="Recompute each Transformer layer.")
+    create_configs_parser.add_argument("--dry_run", action="store_true", default=False, help="Dry run to check the configuration.") 
+    
+    create_single_config_parser = subparsers.add_parser("create_single_config")
+    create_single_config_parser.add_argument("--out_dir", type=str, required=True)
+    create_single_config_parser.add_argument("--model", type=str, required=True)
+    create_single_config_parser.add_argument("--gpus", type=int, required=True, choices=[1, 4, 8, 16, 32, 64, 128, 256, 512])
+    create_single_config_parser.add_argument("--exp_name", type=str, default=None)
+    create_single_config_parser.add_argument("--no_profiler", action="store_true")
+    create_single_config_parser.add_argument("--cluster", type=str, default="hf", choices=["hf", "swiss-ai"])
+    create_single_config_parser.add_argument("--dp", type=int, required=True)
+    create_single_config_parser.add_argument("--tp", type=int, required=True)
+    create_single_config_parser.add_argument("--pp", type=int, required=True)
+    create_single_config_parser.add_argument("--bapr", type=int, required=True, help="Set maximum batch_accumulation_per_replica.")
+    create_single_config_parser.add_argument("--mbs", type=int, required=True)
+    create_single_config_parser.add_argument("--seq_len", type=int, default=4096, choices=[2048, 4096])
+    create_single_config_parser.add_argument("--recompute_layer", action="store_true", default=False, help="Recompute each Transformer layer.")
+    create_single_config_parser.add_argument("--dry_run", action="store_true", default=False, help="Dry run to check the configuration.")
     
     # Submit jobs
     submit_jobs_parser = subparsers.add_parser("submit_jobs")
@@ -92,7 +109,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     if args.action == "create_configs":
-        create_configs(args.out_dir, args.model, args.gpus, args.dp_max, args.tp_max, args.pp_max, args.bapr_max, args.gbs_range, args.no_profiler, args.cluster, args.exp_name, args.seq_len, args.recompute_layer)
+        create_configs(args.out_dir, args.model, args.gpus, args.dp_max, args.tp_max, args.pp_max, args.bapr_max, args.gbs_range, args.no_profiler, args.cluster, args.exp_name, args.seq_len, args.recompute_layer, args.dry_run)
+    elif args.action == "create_single_config":
+        create_single_config(args.out_dir, args.model, args.gpus, args.dp, args.tp, args.pp, args.bapr, args.mbs, args.no_profiler, args.cluster, args.exp_name, args.seq_len, args.recompute_layer, args.dry_run)
     elif args.action == "submit_jobs":
         submit_jobs(args.inp_dir, args.qos, args.hf_token, args.nb_slurm_array, cluster=args.cluster, only=args.only)
     elif args.action == "network_bench":
