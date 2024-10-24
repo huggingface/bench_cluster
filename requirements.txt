@@ -3,4 +3,6 @@ datasets
 numpy==1.26.0
 huggingface_hub
 jinja2
-torch
+torch==2.1.0
+triton==2.1.0
+flash-attn==2.5.0 # FLASH_ATTENTION_FORCE_BUILD=TRUE pip install flash-attn==2.5.0 --no-cache-dir

@@ -34,8 +34,9 @@ update_status() {
 # Misc initializations.
 echo "========================"
 echo "START TIME: $(date)"
+source /etc/profile.d/modules.sh
 source /fsx/ferdinandmom/miniforge3/etc/profile.d/conda.sh
-conda activate /fsx/ferdinandmom/miniforge3/envs/env-bench-cluster
+conda activate /fsx/ferdinandmom/miniforge3/envs/env-new-bench-cluster
 echo python3 version = $(python3 --version)
 echo "========================"
 
@@ -45,12 +46,12 @@ export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
 export MASTER_PORT=$((1024 + RANDOM % 64511))
 
 export TMPDIR=/scratch
-export HF_DATASETS_CACHE="/admin/home/ferdinand_mom/.cache"
+export HF_DATASETS_CACHE="/fsx/ferdinandmom/.cache"
 export CUBLAS_WORKSPACE_CONFIG=":4096:8"
 export CUDA_DEVICE_MAX_CONNECTIONS="1"
 
+module load cuda/12.1
 huggingface-cli login --token $HUGGINGFACE_TOKEN
-
 
 NANOTRON_REPO="/fsx/ferdinandmom/ferdinand-hf/bench_cluster/nanotron"
 CMD="$NANOTRON_REPO/run_train.py --config-file {{ config }}"
@@ -70,12 +71,13 @@ git checkout bench_cluster
 cd ..
 # Get the current job ID
 job_id=${SLURM_JOB_ID}
+echo "Job ID: $job_id"
 
 # Update status to "pending" or "running" in the background
 update_status $job_id {{ root_path }}/status.txt &
 
 # Run the main command
-echo "Running command: $CMD"
+echo "Running command: srun -u $LAUNCHER $CMD"
 srun -u $LAUNCHER $CMD
 exit_status=$?
 
@@ -108,7 +110,7 @@ fi
 {% set branch = parts[0] + '-' + parts[1] %}
 
 # Push to hub the folder using huggingface_cli
-huggingface-cli upload nanotron/bench_cluster {{ root_path }} {{ target_path_hf_hub }} --revision {{ branch }} --commit-message "Upload {{ target_path_hf_hub }}"
+huggingface-cli upload nanotron/bench_cluster_official {{ root_path }} {{ target_path_hf_hub }} --revision {{ branch }} --commit-message "Upload {{ target_path_hf_hub }}"
 
 # Verify the upload
 if [ $? -eq 0 ]; then
